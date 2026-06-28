@@ -22,7 +22,7 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: '8.3'
-          extensions: mbstring, dom, fileinfo, zip, gd, intl, exif, bcmath, pdo_mysql
+          extensions: mbstring, dom, fileinfo, zip, gd, intl, exif, bcmath, pdo_mysql, pdo_sqlite, sqlite3
           coverage: none
 
       - name: Install Composer dependencies
@@ -78,6 +78,8 @@ jobs:
             --exclude=.env.*.local \
             --exclude=node_modules \
             --exclude=tests \
+            --exclude='database/*.sqlite' \
+            --exclude='database/*.sqlite-*' \
             --exclude=storage/logs \
             --exclude=storage/framework/cache/data \
             --exclude=storage/framework/sessions \
@@ -117,6 +119,8 @@ jobs:
 
             chmod 640 .env 2>/dev/null || true
 
+            bash scripts/ensure-sqlite-database.sh /var/www/html/erp
+
             php artisan storage:link --force 2>/dev/null || true
 
             php artisan migrate --force
@@ -128,8 +132,9 @@ jobs:
 
             # Web server user (adjust if your distro uses nginx/apache)
             if id www-data &>/dev/null; then
-              sudo chown -R www-data:www-data storage bootstrap/cache
+              sudo chown -R www-data:www-data storage bootstrap/cache database 2>/dev/null || true
               sudo chmod -R ug+rwx storage bootstrap/cache
+              sudo find database -maxdepth 1 -name '*.sqlite*' -exec chmod 664 {} \; 2>/dev/null || true
             fi
 
             php artisan up || true

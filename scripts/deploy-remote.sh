@@ -18,6 +18,8 @@ mkdir -p bootstrap/cache
 
 chmod 640 .env 2>/dev/null || true
 
+bash scripts/ensure-sqlite-database.sh "$APP_DIR"
+
 php artisan storage:link --force 2>/dev/null || true
 php artisan migrate --force
 php artisan config:cache
@@ -27,8 +29,9 @@ php artisan event:cache
 php artisan queue:restart || true
 
 if id www-data &>/dev/null; then
-  sudo chown -R www-data:www-data storage bootstrap/cache
+  sudo chown -R www-data:www-data storage bootstrap/cache database 2>/dev/null || true
   sudo chmod -R ug+rwx storage bootstrap/cache
+  sudo find database -maxdepth 1 -name '*.sqlite*' -exec chmod 664 {} \; 2>/dev/null || true
 fi
 
 php artisan up || true
