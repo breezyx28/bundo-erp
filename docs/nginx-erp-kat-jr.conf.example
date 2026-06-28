@@ -1,0 +1,65 @@
+# Example: /etc/nginx/sites-available/erp.kat-jr.com
+# Symlink: sudo ln -s /etc/nginx/sites-available/erp.kat-jr.com /etc/nginx/sites-enabled/
+#
+# Replace erp.kat-jr.com with your actual hostname (e.g. kat-jr.com if the ERP is the main site).
+
+server {
+    listen 80;
+    listen [::]:80;
+    server_name erp.kat-jr.com;
+
+    root /var/www/html/erp/public;
+    index index.php;
+
+    # Let's Encrypt HTTP-01 challenge (certbot)
+    location ^~ /.well-known/acme-challenge/ {
+        default_type "text/plain";
+        root /var/www/html/erp/public;
+    }
+
+    location / {
+        return 301 https://$host$request_uri;
+    }
+}
+
+server {
+    listen 443 ssl http2;
+    listen [::]:443 ssl http2;
+    server_name erp.kat-jr.com;
+
+    root /var/www/html/erp/public;
+    index index.php;
+
+    # Certbot fills these paths after: sudo certbot --nginx -d erp.kat-jr.com
+    ssl_certificate     /etc/letsencrypt/live/erp.kat-jr.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/erp.kat-jr.com/privkey.pem;
+    include /etc/letsencrypt/options-ssl-nginx.conf;
+    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
+
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+
+    charset utf-8;
+    client_max_body_size 32M;
+
+    location / {
+        try_files $uri $uri/ /index.php?$query_string;
+    }
+
+    location = /favicon.ico { access_log off; log_not_found off; }
+    location = /robots.txt  { access_log off; log_not_found off; }
+
+    error_page 404 /index.php;
+
+    location ~ \.php$ {
+        fastcgi_pass unix:/run/php/php8.3-fpm.sock;
+        fastcgi_param SCRIPT_FILENAME $realpath_root$fastcgi_script_name;
+        include fastcgi_params;
+        fastcgi_hide_header X-Powered-By;
+    }
+
+    location ~ /\.(?!well-known).* {
+        deny all;
+    }
+}
