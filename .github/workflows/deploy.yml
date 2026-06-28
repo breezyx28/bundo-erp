@@ -53,15 +53,43 @@ jobs:
           php artisan env:decrypt --env=production --force --filename=.env --no-interaction
 
       - name: Sync files to server
-        uses: burnett01/rsync-deployments@7.0.1
-        with:
-          switches: -avzr --delete --include=.env --exclude=.env.production.encrypted --exclude=.git --exclude=.github --exclude=.env.backup --exclude=.env.production --exclude=.env.staging --exclude=.env.local --exclude=.env.*.local --exclude=node_modules --exclude=tests --exclude=storage/logs --exclude=storage/framework/cache/data --exclude=storage/framework/sessions --exclude=storage/framework/views --exclude=storage/app/public --exclude=storage/app/private --exclude=storage/app/backups --exclude=.phpunit.result.cache --exclude=.phpunit.cache
-          path: ./
-          remote_path: /var/www/html/erp/
-          remote_host: ${{ secrets.SSH_HOST }}
-          remote_user: ${{ secrets.SSH_USER }}
-          remote_key: ${{ secrets.SSH_PRIVATE_KEY }}
-          remote_port: ${{ secrets.SSH_PORT }}
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          SSH_PORT: ${{ secrets.SSH_PORT != '' && secrets.SSH_PORT || '22' }}
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -p "$SSH_PORT" -H "$SSH_HOST" >> ~/.ssh/known_hosts 2>/dev/null || true
+
+          rsync -avzr --delete \
+            -e "ssh -i ~/.ssh/deploy_key -p ${SSH_PORT} -o StrictHostKeyChecking=accept-new" \
+            --include=.env \
+            --exclude=.env.production.encrypted \
+            --exclude=.git \
+            --exclude=.github \
+            --exclude=.env.backup \
+            --exclude=.env.production \
+            --exclude=.env.staging \
+            --exclude=.env.local \
+            --exclude=.env.*.local \
+            --exclude=node_modules \
+            --exclude=tests \
+            --exclude=storage/logs \
+            --exclude=storage/framework/cache/data \
+            --exclude=storage/framework/sessions \
+            --exclude=storage/framework/views \
+            --exclude=storage/app/public \
+            --exclude=storage/app/private \
+            --exclude=storage/app/backups \
+            --exclude=.phpunit.result.cache \
+            --exclude=.phpunit.cache \
+            ./ "${SSH_USER}@${SSH_HOST}:/var/www/html/erp/"
+
+          rm -f ~/.ssh/deploy_key
 
       - name: Run remote deploy commands
         uses: appleboy/ssh-action@v1.2.0
@@ -69,7 +97,7 @@ jobs:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          port: ${{ secrets.SSH_PORT }}
+          port: ${{ secrets.SSH_PORT != '' && secrets.SSH_PORT || 22 }}
           script_stop: true
           script: |
             set -euo pipefail
