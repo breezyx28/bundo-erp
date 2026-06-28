@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>غير متصل · Mazin Shoes</title>
+    <style>
+        :root { color-scheme: light dark; }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Cairo', system-ui, sans-serif;
+            background: #f8fafc;
+            color: #0f172a;
+            padding: 24px;
+        }
+        .card {
+            max-width: 420px;
+            text-align: center;
+            background: #fff;
+            border: 1px solid #e2e8f0;
+            border-radius: 16px;
+            padding: 40px 32px;
+            box-shadow: 0 10px 30px rgba(15, 23, 42, .08);
+        }
+        .dot {
+            width: 56px; height: 56px; margin: 0 auto 20px;
+            border-radius: 50%; background: #1d4ed8;
+            display: flex; align-items: center; justify-content: center;
+            color: #fff; font-size: 26px;
+        }
+        h1 { font-size: 20px; margin: 0 0 8px; }
+        p { margin: 0 0 24px; color: #475569; line-height: 1.6; font-size: 15px; }
+        button {
+            border: 0; border-radius: 10px; padding: 12px 24px;
+            background: #1d4ed8; color: #fff; font-size: 15px; cursor: pointer;
+        }
+        button:hover { background: #1e40af; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <div class="dot">!</div>
+        <h1>لا يوجد اتصال بالإنترنت</h1>
+        <p>تعذّر الوصول إلى الخادم. تحقّق من اتصالك بالشبكة ثم أعد المحاولة.<br>You are offline. Please check your connection and try again.</p>
+        <button onclick="location.reload()">إعادة المحاولة / Retry</button>
+    </div>
+</body>
+</html>

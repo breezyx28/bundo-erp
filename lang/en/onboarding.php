@@ -1,0 +1,28 @@
+<?php
+
+return [
+    'title' => 'Onboarding',
+    'welcome' => 'Welcome to Mazin Shoes ERP',
+    'welcome_sub' => 'Let\'s set up your business in a few quick steps.',
+    'step_business' => 'Business',
+    'step_branch' => 'Branch',
+    'step_system' => 'System',
+    'step_modules' => 'Modules',
+    'step_done' => 'Done',
+    'business_title' => 'Business details',
+    'branch_title' => 'First branch',
+    'system_title' => 'System preferences',
+    'modules_title' => 'Enable modules',
+    'done_title' => 'You\'re all set!',
+    'done_sub' => 'Your workspace is ready. Head to the dashboard to get started.',
+    'go_dashboard' => 'Go to Dashboard',
+    'timezone' => 'Timezone',
+    'currency' => 'Default Currency',
+    'exchange_rate' => 'Exchange Rate (USD)',
+    'primary_color' => 'Primary Color',
+    'secondary_color' => 'Secondary Color',
+    'next' => 'Next',
+    'back' => 'Back',
+    'finish' => 'Finish Setup',
+    'completed' => 'Onboarding completed',
+];

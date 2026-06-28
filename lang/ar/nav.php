@@ -1,0 +1,27 @@
+<?php
+
+return [
+    'dashboard' => 'لوحة التحكم',
+    'sales' => 'المبيعات',
+    'products' => 'المنتجات',
+    'categories' => 'الفئات',
+    'brands' => 'العلامات التجارية',
+    'inventory' => 'المخزون',
+    'stock_transfers' => 'تحويلات المخزون',
+    'customers' => 'العملاء',
+    'suppliers' => 'الموردون',
+    'purchases' => 'المشتريات',
+    'expenses' => 'المصروفات',
+    'expense_categories' => 'فئات المصروفات',
+    'logistics' => 'شركات الشحن',
+    'shipping' => 'الشحن',
+    'debts' => 'الديون والتحصيل',
+    'reports' => 'التقارير',
+    'analytics' => 'التحليلات',
+    'data_tools' => 'أدوات البيانات',
+    'branches' => 'الفروع',
+    'users' => 'المستخدمون',
+    'settings' => 'الإعدادات',
+    'all_branches' => 'كل الفروع',
+    'skip_to_content' => 'تخطٍّ إلى المحتوى الرئيسي',
+];

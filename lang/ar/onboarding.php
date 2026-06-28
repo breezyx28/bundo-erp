@@ -1,0 +1,28 @@
+<?php
+
+return [
+    'title' => 'الإعداد الأولي',
+    'welcome' => 'مرحباً بك في نظام مازن للأحذية',
+    'welcome_sub' => 'لنقم بإعداد عملك في خطوات سريعة.',
+    'step_business' => 'العمل',
+    'step_branch' => 'الفرع',
+    'step_system' => 'النظام',
+    'step_modules' => 'الوحدات',
+    'step_done' => 'تم',
+    'business_title' => 'بيانات العمل',
+    'branch_title' => 'الفرع الأول',
+    'system_title' => 'تفضيلات النظام',
+    'modules_title' => 'تفعيل الوحدات',
+    'done_title' => 'كل شيء جاهز!',
+    'done_sub' => 'مساحة العمل جاهزة. انتقل إلى لوحة التحكم للبدء.',
+    'go_dashboard' => 'الذهاب للوحة التحكم',
+    'timezone' => 'المنطقة الزمنية',
+    'currency' => 'العملة الافتراضية',
+    'exchange_rate' => 'سعر الصرف (USD)',
+    'primary_color' => 'اللون الأساسي',
+    'secondary_color' => 'اللون الثانوي',
+    'next' => 'التالي',
+    'back' => 'رجوع',
+    'finish' => 'إنهاء الإعداد',
+    'completed' => 'اكتمل الإعداد الأولي',
+];

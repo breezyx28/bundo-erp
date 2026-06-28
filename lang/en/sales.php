@@ -1,0 +1,45 @@
+<?php
+
+return [
+    'invoice' => 'Invoice',
+    'invoice_number' => 'Invoice #',
+    'new_sale' => 'New sale',
+    'complete_sale' => 'Complete sale',
+    'date' => 'Date',
+    'due_date' => 'Due date',
+    'sale_type' => 'Sale type',
+    'walk_in' => 'Walk-in customer',
+    'items' => 'Items',
+    'add_item' => 'Add item',
+    'unit_price' => 'Unit price',
+    'subtotal' => 'Subtotal',
+    'discount' => 'Discount',
+    'discount_value' => 'Discount value',
+    'net' => 'Net total',
+    'balance' => 'Balance',
+    'exchange_rate' => 'Exchange rate',
+    'initial_payment' => 'Initial payment',
+    'invoice_created' => 'Invoice created',
+    'record_payment' => 'Record payment',
+    'payment_recorded' => 'Payment recorded',
+    'void' => 'Void',
+    'voided' => 'Invoice voided',
+    'confirm_void' => 'Void this invoice and restore its stock?',
+    'overdue' => 'Overdue',
+    'print' => 'Print',
+    'download_pdf' => 'Download PDF',
+    'bill_to' => 'Bill to',
+    'details' => 'Details',
+    'thank_you' => 'Thank you for your business.',
+
+    'type' => [
+        'cash' => 'Cash',
+        'credit' => 'Credit',
+    ],
+
+    'pay' => [
+        'paid' => 'Paid',
+        'partial' => 'Partial',
+        'unpaid' => 'Unpaid',
+    ],
+];

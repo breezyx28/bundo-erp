@@ -1,0 +1,45 @@
+<?php
+
+return [
+    'invoice' => 'فاتورة',
+    'invoice_number' => 'رقم الفاتورة',
+    'new_sale' => 'بيع جديد',
+    'complete_sale' => 'إتمام البيع',
+    'date' => 'التاريخ',
+    'due_date' => 'تاريخ الاستحقاق',
+    'sale_type' => 'نوع البيع',
+    'walk_in' => 'عميل نقدي',
+    'items' => 'الأصناف',
+    'add_item' => 'إضافة صنف',
+    'unit_price' => 'سعر الوحدة',
+    'subtotal' => 'الإجمالي الفرعي',
+    'discount' => 'الخصم',
+    'discount_value' => 'قيمة الخصم',
+    'net' => 'الصافي',
+    'balance' => 'المتبقي',
+    'exchange_rate' => 'سعر الصرف',
+    'initial_payment' => 'الدفعة الأولى',
+    'invoice_created' => 'تم إنشاء الفاتورة',
+    'record_payment' => 'تسجيل دفعة',
+    'payment_recorded' => 'تم تسجيل الدفعة',
+    'void' => 'إلغاء',
+    'voided' => 'تم إلغاء الفاتورة',
+    'confirm_void' => 'إلغاء هذه الفاتورة واستعادة مخزونها؟',
+    'overdue' => 'متأخرة',
+    'print' => 'طباعة',
+    'download_pdf' => 'تنزيل PDF',
+    'bill_to' => 'فاتورة إلى',
+    'details' => 'التفاصيل',
+    'thank_you' => 'شكرًا لتعاملكم معنا.',
+
+    'type' => [
+        'cash' => 'نقدي',
+        'credit' => 'آجل',
+    ],
+
+    'pay' => [
+        'paid' => 'مدفوعة',
+        'partial' => 'جزئية',
+        'unpaid' => 'غير مدفوعة',
+    ],
+];
