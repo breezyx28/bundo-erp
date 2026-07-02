@@ -10,7 +10,6 @@ use App\Services\Branch\BranchContext;
 use Database\Seeders\ModuleSeeder;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Livewire\Livewire;
 use Tests\TestCase;
 
 class ProductTest extends TestCase
@@ -65,18 +64,16 @@ class ProductTest extends TestCase
     {
         $this->actingAsAdmin();
 
-        Livewire::test('products.index')
-            ->call('create')
-            ->set('name', 'Runner X')
-            ->set('sku', 'RUN-X')
-            ->set('selling_price', 25000)
-            ->set('has_variants', true)
-            ->call('addVariant')
-            ->set('variants.0.sku', 'RUN-X-42')
-            ->set('variants.0.size', '42')
-            ->set('variants.0.selling_price', 25000)
-            ->call('save')
-            ->assertHasNoErrors();
+        $this->post(route('products.store'), [
+            'name' => 'Runner X',
+            'sku' => 'RUN-X',
+            'unit' => 'pair',
+            'selling_price' => 25000,
+            'has_variants' => 1,
+            'variants' => [
+                ['sku' => 'RUN-X-42', 'size' => '42', 'selling_price' => 25000],
+            ],
+        ])->assertRedirect(route('products.index'));
 
         $product = Product::where('sku', 'RUN-X')->firstOrFail();
         $this->assertSame('Runner X', $product->name);
@@ -89,13 +86,12 @@ class ProductTest extends TestCase
     {
         $this->actingAsAdmin();
 
-        Livewire::test('products.index')
-            ->call('create')
-            ->set('name', 'No Sku Shoe')
-            ->set('sku', '')
-            ->set('selling_price', 1000)
-            ->call('save')
-            ->assertHasNoErrors();
+        $this->post(route('products.store'), [
+            'name' => 'No Sku Shoe',
+            'sku' => '',
+            'unit' => 'pair',
+            'selling_price' => 1000,
+        ])->assertRedirect(route('products.index'));
 
         $this->assertDatabaseHas('products', ['name' => 'No Sku Shoe']);
         $this->assertNotEmpty(Product::where('name', 'No Sku Shoe')->value('sku'));
@@ -120,11 +116,10 @@ class ProductTest extends TestCase
         $this->get('/products')->assertOk();
 
         // ...but cannot create.
-        Livewire::test('products.index')
-            ->call('create')
-            ->set('name', 'X')
-            ->set('selling_price', 1)
-            ->call('save')
-            ->assertForbidden();
+        $this->post(route('products.store'), [
+            'name' => 'X',
+            'unit' => 'pair',
+            'selling_price' => 1,
+        ])->assertForbidden();
     }
 }

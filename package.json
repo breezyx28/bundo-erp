@@ -7,6 +7,8 @@
         "dev": "vite"
     },
     "devDependencies": {
+        "@iconify-json/heroicons": "^1.2.3",
+        "@iconify-json/lucide": "^1.2.115",
         "@iconify-json/tabler": "^1.2.35",
         "@iconify/tailwind4": "^1.2.3",
         "@tailwindcss/vite": "^4.0.0",
@@ -16,7 +18,12 @@
         "vite": "^8.0.0"
     },
     "dependencies": {
+        "@fontsource/roboto": "^5.2.10",
+        "@inertiajs/vue3": "^3.6.0",
+        "@nuxt/ui": "^4.9.0",
+        "@vitejs/plugin-vue": "^6.0.7",
         "apexcharts": "^5.15.2",
-        "flyonui": "^2.4.1"
+        "vue": "^3.5.39",
+        "vue3-apexcharts": "^1.11.1"
     }
 }

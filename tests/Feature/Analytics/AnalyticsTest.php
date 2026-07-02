@@ -164,6 +164,8 @@ class AnalyticsTest extends TestCase
     {
         $this->makeSale(now()->toDateString(), 100, 50, 5);
 
-        $this->get(route('analytics.index'))->assertOk()->assertSeeLivewire('analytics.index');
+        $this->get(route('analytics.index'))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page->component('Analytics/Index'));
     }
 }

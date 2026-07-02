@@ -10,7 +10,7 @@ use Symfony\Component\HttpFoundation\Response;
  * Adds defence-in-depth HTTP security headers to every web response.
  *
  * The Content-Security-Policy is intentionally permissive about inline scripts
- * and styles because Livewire/Alpine and the FlyonUI stack rely on them;
+ * and styles because Inertia/Vue and Nuxt UI rely on them at runtime;
  * it still constrains object/base/frame-ancestors and forces same-origin
  * defaults, which closes the most common injection vectors.
  */
@@ -48,8 +48,8 @@ class SecurityHeaders
         return implode('; ', [
             "default-src 'self'",
             "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
-            "style-src 'self' 'unsafe-inline' https://fonts.bunny.net https://fonts.googleapis.com",
-            "font-src 'self' data: https://fonts.bunny.net https://fonts.gstatic.com",
+            "style-src 'self' 'unsafe-inline'",
+            "font-src 'self' data:",
             "img-src 'self' data: blob:",
             "connect-src 'self'",
             "object-src 'none'",

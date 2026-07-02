@@ -107,8 +107,12 @@ class DataToolsTest extends TestCase
 
     public function test_data_tools_and_notifications_pages_render(): void
     {
-        $this->get(route('data-tools.index'))->assertOk()->assertSeeLivewire('data-tools.index');
-        $this->get(route('notifications.index'))->assertOk()->assertSeeLivewire('notifications.index');
+        $this->get(route('data-tools.index'))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page->component('DataTools/Index'));
+        $this->get(route('notifications.index'))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page->component('Notifications/Index'));
     }
 
     public function test_export_download_returns_spreadsheet(): void

@@ -15,7 +15,6 @@ use App\Services\Sales\SalesService;
 use Database\Seeders\ModuleSeeder;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Livewire\Livewire;
 use Tests\TestCase;
 
 class NotificationsTest extends TestCase
@@ -119,8 +118,7 @@ class NotificationsTest extends TestCase
         app(NotificationService::class)->scanLowStock($this->tenant->id);
         $this->assertSame(1, $this->user->fresh()->unreadNotifications()->count());
 
-        Livewire::test('layout.notification-bell')
-            ->call('markAllRead');
+        $this->post(route('notifications.read-all'))->assertRedirect();
 
         $this->assertSame(0, $this->user->fresh()->unreadNotifications()->count());
     }

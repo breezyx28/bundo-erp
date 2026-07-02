@@ -11,7 +11,6 @@ use App\Services\Branch\BranchContext;
 use Database\Seeders\ModuleSeeder;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Livewire\Livewire;
 use Tests\TestCase;
 
 class CustomerTest extends TestCase
@@ -52,17 +51,15 @@ class CustomerTest extends TestCase
         return $user;
     }
 
-    public function test_quick_create_emits_event_and_persists_customer(): void
+    public function test_quick_create_persists_customer(): void
     {
         $this->actingAsAdmin();
 
-        Livewire::test('customers.quick-create')
-            ->call('open')
-            ->set('name', 'Walk-in Ahmed')
-            ->set('phone', '+249900000000')
-            ->call('save')
-            ->assertHasNoErrors()
-            ->assertDispatched('customer-created');
+        $this->post(route('customers.store'), [
+            'name' => 'Walk-in Ahmed',
+            'phone' => '+249900000000',
+            'type' => 'retail',
+        ])->assertRedirect();
 
         $this->assertDatabaseHas('customers', ['name' => 'Walk-in Ahmed', 'tenant_id' => $this->tenant->id]);
     }

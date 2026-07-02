@@ -11,7 +11,6 @@ use App\Services\Tenancy\TenantProvisioningService;
 use Database\Seeders\ModuleSeeder;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Livewire\Livewire;
 use Tests\TestCase;
 
 class PlatformTest extends TestCase
@@ -127,7 +126,7 @@ class PlatformTest extends TestCase
             ->assertRedirect(route('onboarding.index'));
     }
 
-    public function test_onboarding_next_advances_under_onboarding_middleware(): void
+    public function test_onboarding_page_renders_under_onboarding_middleware(): void
     {
         $this->withMiddleware(\App\Http\Middleware\EnsureOnboardingComplete::class);
 
@@ -144,11 +143,43 @@ class PlatformTest extends TestCase
         $admin->assignRole('admin');
         $admin->branches()->attach($branch->id);
 
-        Livewire::actingAs($admin)
-            ->test('onboarding.index')
-            ->assertSet('step', 1)
-            ->call('next')
-            ->assertSet('step', 2);
+        $this->actingAs($admin)
+            ->get(route('onboarding.index'))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page->component('Onboarding/Index'));
+    }
+
+    public function test_onboarding_finish_completes_tenant(): void
+    {
+        $tenant = Tenant::create(['name' => 'Fresh', 'is_active' => true]);
+        $branch = Branch::create(['tenant_id' => $tenant->id, 'name' => 'Main', 'code' => 'M']);
+        $admin = User::create([
+            'tenant_id' => $tenant->id,
+            'default_branch_id' => $branch->id,
+            'name' => 'Admin',
+            'email' => 'fresh3@test.com',
+            'password' => 'x',
+            'is_active' => true,
+        ]);
+        $admin->assignRole('admin');
+        $admin->branches()->attach($branch->id);
+        app(BranchContext::class)->flushCache();
+
+        $this->actingAs($admin)
+            ->post(route('onboarding.finish'), [
+                'company_name' => 'Fresh Kicks',
+                'primary_color' => '#39C6A0',
+                'secondary_color' => '#228C70',
+                'locale' => 'ar',
+                'timezone' => 'Africa/Khartoum',
+                'currency' => 'SDG',
+                'exchange_rate' => 600,
+                'branch_name' => 'HQ',
+                'branch_code' => 'HQ',
+            ])
+            ->assertRedirect(route('dashboard'));
+
+        $this->assertNotNull($tenant->fresh()->onboarding_completed_at);
     }
 
     public function test_tenant_admin_pages_render(): void

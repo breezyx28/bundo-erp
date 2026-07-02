@@ -1,21 +1,51 @@
 import { defineConfig } from 'vite';
+import { fileURLToPath, URL } from 'node:url';
 import laravel from 'laravel-vite-plugin';
-import { bunny } from 'laravel-vite-plugin/fonts';
-import tailwindcss from '@tailwindcss/vite';
+import { fontsource } from 'laravel-vite-plugin/fonts';
+import vue from '@vitejs/plugin-vue';
+import ui from '@nuxt/ui/vite';
 
 export default defineConfig({
     plugins: [
         laravel({
-            input: ['resources/css/app.css', 'resources/js/app.js'],
+            input: [
+                'resources/js/inertia.js',
+            ],
             refresh: true,
             fonts: [
-                bunny('Roboto', {
+                fontsource('Roboto', {
                     weights: [400, 500, 700],
                 }),
             ],
         }),
-        tailwindcss(),
+        vue({
+            template: {
+                transformAssetUrls: {
+                    base: null,
+                    includeAbsolute: false,
+                },
+            },
+        }),
+        // Nuxt UI bundles @tailwindcss/vite internally, so we do NOT add
+        // a standalone tailwindcss() plugin here (would double-register).
+        ui({
+            router: 'inertia',
+            colorMode: false,
+            ui: {
+                colors: {
+                    primary: 'emerald',
+                    secondary: 'teal',
+                    neutral: 'slate',
+                },
+            },
+        }),
     ],
+    resolve: {
+        alias: {
+            '@': fileURLToPath(new URL('./resources/js', import.meta.url)),
+            'ziggy-js': fileURLToPath(new URL('./vendor/tightenco/ziggy', import.meta.url)),
+        },
+    },
     server: {
         watch: {
             ignored: ['**/storage/framework/views/**'],

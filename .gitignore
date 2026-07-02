@@ -31,3 +31,7 @@ Homestead.yaml
 Thumbs.db
 
 env-encryption-key.txt
+
+# Nuxt UI auto-generated type declarations
+/auto-imports.d.ts
+/components.d.ts

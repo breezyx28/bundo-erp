@@ -33,13 +33,6 @@ class EnsureOnboardingComplete
 
     protected function allowsDuringOnboarding(Request $request): bool
     {
-        if ($request->routeIs('onboarding.*', 'logout', 'locale.switch')) {
-            return true;
-        }
-
-        // Livewire update/upload/preview must pass through or wizard actions never run.
-        $routeName = (string) $request->route()?->getName();
-
-        return str_contains($routeName, 'livewire');
+        return $request->routeIs('onboarding.*', 'logout', 'locale.switch');
     }
 }

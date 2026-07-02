@@ -12,7 +12,6 @@ use App\Services\Expenses\ExpenseService;
 use Database\Seeders\ModuleSeeder;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Livewire\Livewire;
 use Tests\TestCase;
 
 class ExpenseTest extends TestCase
@@ -90,16 +89,15 @@ class ExpenseTest extends TestCase
         $this->assertSame(0.0, $report['total']);
     }
 
-    public function test_admin_can_create_an_expense_via_component(): void
+    public function test_admin_can_create_an_expense(): void
     {
-        Livewire::test('expenses.index')
-            ->call('create')
-            ->set('expense_category_id', $this->rent->id)
-            ->set('amount', 7500)
-            ->set('description', 'Monthly rent')
-            ->set('expense_date', now()->toDateString())
-            ->call('save')
-            ->assertHasNoErrors();
+        $this->post(route('expenses.store'), [
+            'expense_category_id' => $this->rent->id,
+            'amount' => 7500,
+            'description' => 'Monthly rent',
+            'expense_date' => now()->toDateString(),
+            'payment_method' => 'cash',
+        ])->assertRedirect(route('expenses.index'));
 
         $this->assertDatabaseHas('expenses', [
             'expense_category_id' => $this->rent->id,
@@ -108,17 +106,16 @@ class ExpenseTest extends TestCase
         ]);
     }
 
-    public function test_linked_expense_records_reference(): void
+    public function test_linked_expense_requires_reference(): void
     {
-        Livewire::test('expenses.index')
-            ->call('create')
-            ->set('expense_category_id', $this->rent->id)
-            ->set('amount', 1000)
-            ->set('description', 'Linked')
-            ->set('expense_date', now()->toDateString())
-            ->set('linked', true)
-            ->set('purchase_order_id', null)
-            ->call('save')
-            ->assertHasErrors('purchase_order_id'); // required when linked
+        $this->post(route('expenses.store'), [
+            'expense_category_id' => $this->rent->id,
+            'amount' => 1000,
+            'description' => 'Linked',
+            'expense_date' => now()->toDateString(),
+            'payment_method' => 'cash',
+            'linked' => true,
+            'purchase_order_id' => null,
+        ])->assertSessionHasErrors('purchase_order_id'); // required when linked
     }
 }

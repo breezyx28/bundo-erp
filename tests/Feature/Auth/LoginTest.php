@@ -8,7 +8,6 @@ use App\Models\User;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
-use Livewire\Livewire;
 use Tests\TestCase;
 
 class LoginTest extends TestCase
@@ -51,13 +50,12 @@ class LoginTest extends TestCase
     {
         $this->makeUser();
 
-        Livewire::test('auth.login')
-            ->set('email', 'jane@example.com')
-            ->set('password', 'secret-pass')
-            ->call('login')
-            ->assertHasNoErrors()
-            ->assertRedirect(route('dashboard'));
+        $response = $this->post('/login', [
+            'email' => 'jane@example.com',
+            'password' => 'secret-pass',
+        ]);
 
+        $response->assertRedirect(route('dashboard'));
         $this->assertAuthenticated();
     }
 
@@ -65,12 +63,12 @@ class LoginTest extends TestCase
     {
         $this->makeUser();
 
-        Livewire::test('auth.login')
-            ->set('email', 'jane@example.com')
-            ->set('password', 'wrong')
-            ->call('login')
-            ->assertHasErrors('email');
+        $response = $this->post('/login', [
+            'email' => 'jane@example.com',
+            'password' => 'wrong',
+        ]);
 
+        $response->assertSessionHasErrors('email');
         $this->assertGuest();
     }
 
@@ -78,12 +76,12 @@ class LoginTest extends TestCase
     {
         $this->makeUser(active: false);
 
-        Livewire::test('auth.login')
-            ->set('email', 'jane@example.com')
-            ->set('password', 'secret-pass')
-            ->call('login')
-            ->assertHasErrors('email');
+        $response = $this->post('/login', [
+            'email' => 'jane@example.com',
+            'password' => 'secret-pass',
+        ]);
 
+        $response->assertSessionHasErrors('email');
         $this->assertGuest();
     }
 }

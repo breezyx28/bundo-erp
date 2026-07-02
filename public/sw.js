@@ -6,10 +6,9 @@
  *  - Network-first for navigations (always prefer fresh, authenticated HTML);
  *    fall back to the cached offline page when the network is unavailable.
  *  - Stale-while-revalidate for built static assets (Vite output under /build).
- *  - Never cache POST/PUT/PATCH/DELETE or non-GET requests, and never cache
- *    Livewire update calls so live data stays correct.
+ *  - Never cache POST/PUT/PATCH/DELETE or non-GET requests.
  */
-const CACHE_VERSION = 'mazin-shell-v1';
+const CACHE_VERSION = 'mazin-shell-v5';
 const OFFLINE_URL = '/offline.html';
 const PRECACHE = [OFFLINE_URL, '/manifest.webmanifest'];
 
@@ -36,7 +35,7 @@ self.addEventListener('fetch', (event) => {
 
     const url = new URL(request.url);
 
-    if (url.origin !== self.location.origin || url.pathname.startsWith('/livewire')) {
+    if (url.origin !== self.location.origin) {
         return;
     }
 

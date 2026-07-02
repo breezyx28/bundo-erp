@@ -44,6 +44,6 @@ class PwaShellTest extends TestCase
         $response->assertOk();
         $response->assertSee('rel="manifest"', false);
         $response->assertSee('/sw.js', false);
-        $response->assertSee('id="main-content"', false);
+        $response->assertInertia(fn ($page) => $page->component('Dashboard/Index'));
     }
 }
