@@ -158,4 +158,41 @@ class ReportingTest extends TestCase
         $pdf->assertOk();
         $this->assertSame('application/pdf', $pdf->headers->get('content-type'));
     }
+
+    public function test_invalid_report_type_defaults_to_pnl(): void
+    {
+        $this->makeSale();
+
+        $this->get(route('reports.index', ['type' => 'not-a-report']))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('Reports/Index')
+                ->where('type', 'pnl')
+                ->where('pnl', fn ($pnl) => $pnl !== null)
+            );
+    }
+
+    public function test_uncategorized_expenses_appear_in_pnl_breakdown(): void
+    {
+        $category = ExpenseCategory::factory()->for($this->tenant)->create(['name' => 'Ops']);
+        Expense::create([
+            'tenant_id' => $this->tenant->id,
+            'branch_id' => $this->branch->id,
+            'expense_category_id' => $category->id,
+            'amount' => 750,
+            'description' => 'Orphan test',
+            'expense_date' => now()->toDateString(),
+            'payment_method' => 'cash',
+        ]);
+        $category->delete();
+
+        $pnl = app(FinancialReportService::class)->profitAndLoss(
+            now()->startOfMonth()->toDateString(),
+            now()->toDateString(),
+        );
+
+        $categories = collect($pnl['expense_breakdown'])->pluck('category');
+        $this->assertTrue($categories->contains(__('reports.uncategorized')));
+        $this->assertSame(750.0, $pnl['expenses']);
+    }
 }

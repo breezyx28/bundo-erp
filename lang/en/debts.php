@@ -2,6 +2,10 @@
 
 return [
     'outstanding' => 'Total outstanding',
+    'receivables' => 'Customer receivables',
+    'payables' => 'Supplier payables',
+    'payables_total' => 'Total payable',
+    'supplier_aging' => 'Payables aging',
     'aging' => 'Debt aging',
     'overdue_only' => 'Overdue only',
     'collect' => 'Collect',

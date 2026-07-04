@@ -5,8 +5,11 @@ import { route } from 'ziggy-js';
 import AppLayout from '@/layouts/AppLayout.vue';
 import DataTable from '@/components/DataTable.vue';
 import FormModal from '@/components/FormModal.vue';
+import TableToolbar from '@/components/TableToolbar.vue';
+import TablePrintModal from '@/components/TablePrintModal.vue';
 import { useTrans } from '@/composables/useTrans';
 import { useTableFilters } from '@/composables/useTableFilters';
+import { useTableColumns } from '@/composables/useTableColumns';
 
 const props = defineProps({
     products: { type: Object, required: true },
@@ -16,23 +19,36 @@ const props = defineProps({
     branchName: { type: String, default: null },
     isConsolidated: { type: Boolean, default: false },
     movements: { type: Array, default: () => [] },
+    sortOptions: { type: Array, default: () => [] },
     filters: { type: Object, default: () => ({}) },
     canReceive: { type: Boolean, default: false },
     canAdjust: { type: Boolean, default: false },
 });
 
 const { t } = useTrans();
-const { filters } = useTableFilters('inventory.index', {
+const { filters, toggleSort } = useTableFilters('inventory.index', {
     search: props.filters.search ?? '',
     low_stock: props.filters.low_stock ?? false,
+    sort: props.filters.sort ?? '',
+    direction: props.filters.direction ?? 'asc',
 });
 
 const headers = [
-    { key: 'name', label: t('fields.name') },
-    { key: 'sku', label: t('fields.sku') },
-    { key: 'on_hand', label: t('inventory.on_hand'), class: 'text-end' },
-    { key: 'reorder_level', label: t('fields.reorder_level'), class: 'text-end' },
+    { key: 'name', label: t('fields.name'), sortable: true },
+    { key: 'sku', label: t('fields.sku'), sortable: true },
+    { key: 'on_hand', label: t('inventory.on_hand'), align: 'end' },
+    { key: 'reorder_level', label: t('fields.reorder_level'), align: 'end', sortable: true },
 ];
+
+const { visibleHeaders, columnOptions, toggle: toggleColumn } = useTableColumns('inventory.index', headers);
+const printOpen = ref(false);
+const printRows = computed(() =>
+    (props.products.data ?? []).map((row) => ({
+        ...row,
+        on_hand: row.on_hand.toLocaleString(),
+        reorder_level: row.reorder_level.toLocaleString(),
+    })),
+);
 
 const productItems = computed(() =>
     props.productOptions.map((p) => ({ label: p.name, value: p.id })),
@@ -146,15 +162,29 @@ function openMovements(row) {
             </div>
 
             <UCard>
-                <DataTable :headers="headers" :rows="products" :query="filters" actions>
+                <DataTable
+                    :headers="visibleHeaders"
+                    :rows="products"
+                    :query="filters"
+                    :sort="filters.sort"
+                    :direction="filters.direction"
+                    actions
+                    @sort="toggleSort"
+                >
                     <template #toolbar>
-                        <UInput
-                            v-model="filters.search"
-                            icon="i-heroicons-magnifying-glass"
-                            :placeholder="t('common.search')"
-                            class="w-full sm:max-w-xs"
-                        />
-                        <UCheckbox v-model="filters.low_stock" :label="t('inventory.low_stock_only')" />
+                        <TableToolbar
+                            :filters="filters"
+                            :sort-options="sortOptions"
+                            :column-options="columnOptions"
+                            :date-range="false"
+                            :search-placeholder="t('common.search')"
+                            @toggle-column="toggleColumn"
+                            @print="printOpen = true"
+                        >
+                            <template #filters>
+                                <UCheckbox v-model="filters.low_stock" :label="t('inventory.low_stock_only')" />
+                            </template>
+                        </TableToolbar>
                     </template>
 
                     <template #cell-on_hand="{ row }">
@@ -302,5 +332,12 @@ function openMovements(row) {
                 </div>
             </template>
         </USlideover>
+
+        <TablePrintModal
+            v-model:open="printOpen"
+            :title="t('nav.inventory')"
+            :headers="visibleHeaders"
+            :rows="printRows"
+        />
     </AppLayout>
 </template>

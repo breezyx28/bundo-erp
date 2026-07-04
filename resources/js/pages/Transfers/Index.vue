@@ -6,8 +6,11 @@ import AppLayout from '@/layouts/AppLayout.vue';
 import DataTable from '@/components/DataTable.vue';
 import FormModal from '@/components/FormModal.vue';
 import ConfirmModal from '@/components/ConfirmModal.vue';
+import TableToolbar from '@/components/TableToolbar.vue';
+import TablePrintModal from '@/components/TablePrintModal.vue';
 import { useTrans } from '@/composables/useTrans';
 import { useTableFilters } from '@/composables/useTableFilters';
+import { useTableColumns } from '@/composables/useTableColumns';
 
 const props = defineProps({
     transfers: { type: Object, required: true },
@@ -15,23 +18,37 @@ const props = defineProps({
     defaultFromBranch: { type: [Number, null], default: null },
     productOptions: { type: Array, default: () => [] },
     statusOptions: { type: Array, default: () => [] },
+    sortOptions: { type: Array, default: () => [] },
     detail: { type: Object, default: null },
     filters: { type: Object, default: () => ({}) },
     canManage: { type: Boolean, default: false },
 });
 
 const { t } = useTrans();
-const { filters } = useTableFilters('transfers.index', {
+const { filters, toggleSort } = useTableFilters('transfers.index', {
     status: props.filters.status ?? '',
+    sort: props.filters.sort ?? '',
+    direction: props.filters.direction ?? 'desc',
 });
 
 const headers = [
-    { key: 'number', label: t('inventory.transfer_no') },
+    { key: 'number', label: t('inventory.transfer_no'), sortable: true },
     { key: 'from', label: t('inventory.from_branch') },
     { key: 'to', label: t('inventory.to_branch') },
-    { key: 'status', label: t('common.status') },
-    { key: 'created', label: t('inventory.requested_at') },
+    { key: 'status', label: t('common.status'), sortable: true },
+    { key: 'created_at', label: t('inventory.requested_at'), sortable: true },
 ];
+
+const { visibleHeaders, columnOptions, toggle: toggleColumn } = useTableColumns('transfers.index', headers);
+const printOpen = ref(false);
+const printRows = computed(() =>
+    (props.transfers.data ?? []).map((row) => ({
+        ...row,
+        from: row.from ?? '—',
+        to: row.to ?? '—',
+        status: t('inventory.status.' + row.status),
+    })),
+);
 
 const statusItems = computed(() => [{ label: t('common.all'), value: '' }, ...props.statusOptions]);
 const branchItems = computed(() => props.branchOptions.map((b) => ({ label: b.name, value: b.id })));
@@ -120,15 +137,35 @@ function openDetail(id) {
             </div>
 
             <UCard>
-                <DataTable :headers="headers" :rows="transfers" :query="filters" actions>
+                <DataTable
+                    :headers="visibleHeaders"
+                    :rows="transfers"
+                    :query="filters"
+                    :sort="filters.sort"
+                    :direction="filters.direction"
+                    actions
+                    @sort="toggleSort"
+                >
                     <template #toolbar>
-                        <USelectMenu v-model="filters.status" :items="statusItems" value-key="value" class="w-full sm:w-48" />
+                        <TableToolbar
+                            :filters="filters"
+                            :sort-options="sortOptions"
+                            :column-options="columnOptions"
+                            :date-range="false"
+                            :search="false"
+                            @toggle-column="toggleColumn"
+                            @print="printOpen = true"
+                        >
+                            <template #filters>
+                                <USelectMenu v-model="filters.status" :items="statusItems" value-key="value" class="w-full sm:w-48" />
+                            </template>
+                        </TableToolbar>
                     </template>
 
                     <template #cell-status="{ value }">
                         <UBadge :color="statusColor(value)" variant="subtle" :label="t('inventory.status.' + value)" />
                     </template>
-                    <template #cell-created="{ value }">
+                    <template #cell-created_at="{ value }">
                         <span class="text-xs text-muted">{{ value }}</span>
                     </template>
 
@@ -213,6 +250,13 @@ function openDetail(id) {
             :message="t('common.confirm') + '?'"
             :confirm-label="t('inventory.cancel')"
             @confirm="confirmCancel()"
+        />
+
+        <TablePrintModal
+            v-model:open="printOpen"
+            :title="t('inventory.stock_transfers')"
+            :headers="visibleHeaders"
+            :rows="printRows"
         />
     </AppLayout>
 </template>

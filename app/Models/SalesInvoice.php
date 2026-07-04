@@ -131,7 +131,9 @@ class SalesInvoice extends Model
             return $query;
         }
 
-        return $query->where('invoice_number', 'like', "%{$term}%")
-            ->orWhereHas('customer', fn (Builder $q) => $q->where('name', 'like', "%{$term}%"));
+        return $query->where(function (Builder $q) use ($term) {
+            $q->where('invoice_number', 'like', "%{$term}%")
+                ->orWhereHas('customer', fn (Builder $c) => $c->where('name', 'like', "%{$term}%"));
+        });
     }
 }

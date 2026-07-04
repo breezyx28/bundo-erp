@@ -6,6 +6,8 @@ return [
     'edit_po' => 'تعديل أمر الشراء',
     'order_date' => 'تاريخ الأمر',
     'expected_delivery' => 'التسليم المتوقع',
+    'payment_due' => 'تاريخ استحقاق الدفع',
+    'payment_due_hint' => 'اتركه فارغًا للدفع عند الاستلام.',
     'order_status' => 'حالة الأمر',
     'payment_status' => 'حالة الدفع',
     'total' => 'الإجمالي',

@@ -5,8 +5,11 @@ import { route } from 'ziggy-js';
 import AppLayout from '@/layouts/AppLayout.vue';
 import DataTable from '@/components/DataTable.vue';
 import FormModal from '@/components/FormModal.vue';
+import TableToolbar from '@/components/TableToolbar.vue';
+import TablePrintModal from '@/components/TablePrintModal.vue';
 import { useTrans } from '@/composables/useTrans';
 import { useTableFilters } from '@/composables/useTableFilters';
+import { useTableColumns } from '@/composables/useTableColumns';
 
 const props = defineProps({
     shipments: { type: Object, required: true },
@@ -14,6 +17,7 @@ const props = defineProps({
     invoiceOptions: { type: Array, default: () => [] },
     statusOptions: { type: Array, default: () => [] },
     modeOptions: { type: Array, default: () => [] },
+    sortOptions: { type: Array, default: () => [] },
     report: { type: Object, required: true },
     deliveredStatus: { type: String, default: 'delivered' },
     detail: { type: Object, default: null },
@@ -23,21 +27,36 @@ const props = defineProps({
 });
 
 const { t } = useTrans();
-const { filters } = useTableFilters('shipments.index', {
+const { filters, toggleSort } = useTableFilters('shipments.index', {
     search: props.filters.search ?? '',
     status: props.filters.status ?? '',
     from: props.filters.from ?? '',
     to: props.filters.to ?? '',
+    sort: props.filters.sort ?? '',
+    direction: props.filters.direction ?? 'desc',
 });
 
 const headers = [
-    { key: 'tracking', label: t('shipping.tracking') },
+    { key: 'tracking_number', label: t('shipping.tracking'), sortable: true },
     { key: 'customer', label: t('nav.customers') },
     { key: 'route', label: t('shipping.route') },
     { key: 'company', label: t('shipping.company') },
-    { key: 'status', label: t('common.status') },
-    { key: 'shipping_cost', label: t('shipping.shipping_cost'), class: 'text-end' },
+    { key: 'status', label: t('common.status'), sortable: true },
+    { key: 'shipping_cost', label: t('shipping.shipping_cost'), align: 'end', sortable: true },
 ];
+
+const { visibleHeaders, columnOptions, toggle: toggleColumn } = useTableColumns('shipments.index', headers);
+const printOpen = ref(false);
+const printRows = computed(() =>
+    (props.shipments.data ?? []).map((row) => ({
+        ...row,
+        tracking_number: row.tracking_number ?? '—',
+        customer: row.customer ?? '—',
+        route: `${row.dispatch_city} → ${row.delivery_city}`,
+        company: row.company ?? '—',
+        status: t('shipping.status.' + row.status),
+    })),
+);
 
 const statusItems = computed(() => [{ label: t('common.all'), value: '' }, ...props.statusOptions]);
 const companyItems = computed(() => props.companyOptions.map((c) => ({ label: c.name, value: c.id })));
@@ -232,18 +251,32 @@ function rejectReturn(id) {
             </UCard>
 
             <UCard>
-                <DataTable :headers="headers" :rows="shipments" :query="filters" actions>
+                <DataTable
+                    :headers="visibleHeaders"
+                    :rows="shipments"
+                    :query="filters"
+                    :sort="filters.sort"
+                    :direction="filters.direction"
+                    actions
+                    @sort="toggleSort"
+                >
                     <template #toolbar>
-                        <UInput
-                            v-model="filters.search"
-                            icon="i-heroicons-magnifying-glass"
-                            :placeholder="t('common.search')"
-                            class="w-full sm:max-w-xs"
-                        />
-                        <USelectMenu v-model="filters.status" :items="statusItems" value-key="value" class="w-full sm:w-48" />
+                        <TableToolbar
+                            :filters="filters"
+                            :sort-options="sortOptions"
+                            :column-options="columnOptions"
+                            :date-range="false"
+                            :search-placeholder="t('common.search')"
+                            @toggle-column="toggleColumn"
+                            @print="printOpen = true"
+                        >
+                            <template #filters>
+                                <USelectMenu v-model="filters.status" :items="statusItems" value-key="value" class="w-full sm:w-48" />
+                            </template>
+                        </TableToolbar>
                     </template>
 
-                    <template #cell-tracking="{ row }">
+                    <template #cell-tracking_number="{ row }">
                         <div class="font-medium">{{ row.tracking_number ?? '—' }}</div>
                         <div class="text-xs text-dimmed">{{ row.invoice_number }}</div>
                     </template>
@@ -397,5 +430,12 @@ function rejectReturn(id) {
                 </div>
             </template>
         </USlideover>
+
+        <TablePrintModal
+            v-model:open="printOpen"
+            :title="t('nav.shipping')"
+            :headers="visibleHeaders"
+            :rows="printRows"
+        />
     </AppLayout>
 </template>

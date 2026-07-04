@@ -5,8 +5,11 @@ import { route } from 'ziggy-js';
 import AppLayout from '@/layouts/AppLayout.vue';
 import DataTable from '@/components/DataTable.vue';
 import FormModal from '@/components/FormModal.vue';
+import TableToolbar from '@/components/TableToolbar.vue';
+import TablePrintModal from '@/components/TablePrintModal.vue';
 import { useTrans } from '@/composables/useTrans';
 import { useTableFilters } from '@/composables/useTableFilters';
+import { useTableColumns } from '@/composables/useTableColumns';
 
 const props = defineProps({
     orders: { type: Object, required: true },
@@ -14,6 +17,7 @@ const props = defineProps({
     productOptions: { type: Array, default: () => [] },
     statusOptions: { type: Array, default: () => [] },
     methodOptions: { type: Array, default: () => [] },
+    sortOptions: { type: Array, default: () => [] },
     editing: { type: Object, default: null },
     receiveDetail: { type: Object, default: null },
     detail: { type: Object, default: null },
@@ -24,19 +28,34 @@ const props = defineProps({
 });
 
 const { t } = useTrans();
-const { filters } = useTableFilters('purchases.index', {
+const { filters, toggleSort } = useTableFilters('purchases.index', {
     search: props.filters.search ?? '',
     status: props.filters.status ?? '',
+    sort: props.filters.sort ?? '',
+    direction: props.filters.direction ?? 'desc',
+    date_from: props.filters.date_from ?? '',
+    date_to: props.filters.date_to ?? '',
 });
 
 const headers = [
-    { key: 'po_number', label: t('purchasing.po_number') },
+    { key: 'po_number', label: t('purchasing.po_number'), sortable: true },
     { key: 'supplier', label: t('nav.suppliers') },
-    { key: 'order_date', label: t('purchasing.order_date') },
-    { key: 'total_amount', label: t('purchasing.total'), class: 'text-end' },
+    { key: 'order_date', label: t('purchasing.order_date'), sortable: true },
+    { key: 'total_amount', label: t('purchasing.total'), align: 'end', sortable: true },
     { key: 'order_status', label: t('purchasing.order_status') },
     { key: 'payment_status', label: t('purchasing.payment_status') },
 ];
+
+const { visibleHeaders, columnOptions, toggle: toggleColumn } = useTableColumns('purchases.index', headers);
+const printOpen = ref(false);
+const printRows = computed(() =>
+    (props.orders.data ?? []).map((row) => ({
+        ...row,
+        supplier: row.supplier ?? '—',
+        order_status: t('purchasing.status.' + row.order_status),
+        payment_status: t('sales.pay.' + row.payment_status),
+    })),
+);
 
 const statusItems = computed(() => [
     { label: t('common.all'), value: '' },
@@ -61,6 +80,7 @@ const form = useForm({
     supplier_id: null,
     order_date: today,
     expected_delivery_date: null,
+    payment_due_date: null,
     notes: '',
     items: [],
 });
@@ -97,6 +117,7 @@ function openEdit(id) {
             form.supplier_id = props.editing.supplier_id;
             form.order_date = props.editing.order_date;
             form.expected_delivery_date = props.editing.expected_delivery_date;
+            form.payment_due_date = props.editing.payment_due_date;
             form.notes = props.editing.notes ?? '';
             form.items = props.editing.items.length
                 ? props.editing.items.map((i) => ({ ...i }))
@@ -214,15 +235,27 @@ function openDetail(id) {
             </div>
 
             <UCard>
-                <DataTable :headers="headers" :rows="orders" :query="filters" actions>
+                <DataTable
+                    :headers="visibleHeaders"
+                    :rows="orders"
+                    :query="filters"
+                    :sort="filters.sort"
+                    :direction="filters.direction"
+                    actions
+                    @sort="toggleSort"
+                >
                     <template #toolbar>
-                        <UInput
-                            v-model="filters.search"
-                            icon="i-heroicons-magnifying-glass"
-                            :placeholder="t('common.search')"
-                            class="w-full sm:max-w-xs"
-                        />
-                        <USelectMenu v-model="filters.status" :items="statusItems" value-key="value" class="w-full sm:w-40" />
+                        <TableToolbar
+                            :filters="filters"
+                            :sort-options="sortOptions"
+                            :column-options="columnOptions"
+                            @toggle-column="toggleColumn"
+                            @print="printOpen = true"
+                        >
+                            <template #filters>
+                                <USelectMenu v-model="filters.status" :items="statusItems" value-key="value" class="w-full sm:w-40" />
+                            </template>
+                        </TableToolbar>
                     </template>
 
                     <template #cell-order_date="{ value }">
@@ -255,7 +288,7 @@ function openDetail(id) {
             width="sm:max-w-3xl"
         >
             <div class="grid gap-4">
-                <div class="grid gap-4 sm:grid-cols-3">
+                <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                     <UFormField :label="t('nav.suppliers')" :error="form.errors.supplier_id">
                         <USelectMenu v-model="form.supplier_id" :items="supplierItems" value-key="value" searchable class="w-full" />
                     </UFormField>
@@ -264,6 +297,9 @@ function openDetail(id) {
                     </UFormField>
                     <UFormField :label="t('purchasing.expected_delivery')" :error="form.errors.expected_delivery_date">
                         <UInput v-model="form.expected_delivery_date" type="date" class="w-full" />
+                    </UFormField>
+                    <UFormField :label="t('purchasing.payment_due')" :error="form.errors.payment_due_date" :hint="t('purchasing.payment_due_hint')">
+                        <UInput v-model="form.payment_due_date" type="date" class="w-full" />
                     </UFormField>
                 </div>
 
@@ -398,5 +434,12 @@ function openDetail(id) {
                 </div>
             </template>
         </USlideover>
+
+        <TablePrintModal
+            v-model:open="printOpen"
+            :title="t('nav.purchases')"
+            :headers="visibleHeaders"
+            :rows="printRows"
+        />
     </AppLayout>
 </template>

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\AppliesTableFilters;
 use App\Http\Controllers\Concerns\InteractsWithToast;
 use App\Http\Requests\ExpenseCategoryRequest;
 use App\Models\ExpenseCategory;
@@ -14,17 +15,22 @@ use Inertia\Response;
 
 class ExpenseCategoryController extends Controller
 {
-    use InteractsWithToast;
+    use AppliesTableFilters, InteractsWithToast;
+
+    /** @var array<int, string> */
+    protected array $sortable = ['name', 'is_operational', 'expenses_count', 'is_active'];
 
     public function index(Request $request): Response
     {
         $search = (string) $request->string('search');
 
+        $query = ExpenseCategory::query()
+            ->when($search, fn ($q) => $q->where('name', 'like', "%{$search}%"))
+            ->withCount('expenses');
+        $this->applySort($query, $request, $this->sortable, 'id', 'desc');
+
         return Inertia::render('ExpenseCategories/Index', [
-            'categories' => ExpenseCategory::query()
-                ->when($search, fn ($q) => $q->where('name', 'like', "%{$search}%"))
-                ->withCount('expenses')
-                ->orderBy('name')
+            'categories' => $query
                 ->paginate(10)
                 ->withQueryString()
                 ->through(fn (ExpenseCategory $category) => [
@@ -35,7 +41,14 @@ class ExpenseCategoryController extends Controller
                     'is_active' => (bool) $category->is_active,
                     'expenses_count' => $category->expenses_count,
                 ]),
-            'filters' => ['search' => $search],
+            'sortOptions' => [
+                ['value' => 'name', 'label' => __('fields.name')],
+                ['value' => 'expenses_count', 'label' => __('nav.expenses')],
+            ],
+            'filters' => [
+                'search' => $search,
+                ...$this->tableFilterState($request, $this->sortable),
+            ],
             'canManage' => Gate::allows('expenses.update'),
         ]);
     }

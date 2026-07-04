@@ -32,7 +32,7 @@ class PurchaseService
     /**
      * Create or update a draft/ordered purchase order together with its line items.
      *
-     * @param  array{supplier_id:int, order_date:string, expected_delivery_date?:?string, notes?:?string}  $attributes
+     * @param  array{supplier_id:int, order_date:string, expected_delivery_date?:?string, payment_due_date?:?string, notes?:?string}  $attributes
      * @param  array<int, array{product_id:int, variant_id?:?int, quantity?:int, cost_per_unit:float, cost_per_unit_usd?:float}>  $items
      */
     public function save(array $attributes, array $items, ?PurchaseOrder $order = null): PurchaseOrder
@@ -65,6 +65,7 @@ class PurchaseService
                 'supplier_id' => $attributes['supplier_id'],
                 'order_date' => $attributes['order_date'],
                 'expected_delivery_date' => $attributes['expected_delivery_date'] ?? null,
+                'payment_due_date' => $attributes['payment_due_date'] ?? null,
                 'notes' => $attributes['notes'] ?? null,
             ])->save();
 

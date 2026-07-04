@@ -1,11 +1,14 @@
 <script setup>
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { Head, useForm } from '@inertiajs/vue3';
 import AppLayout from '@/layouts/AppLayout.vue';
 import DataTable from '@/components/DataTable.vue';
 import FormModal from '@/components/FormModal.vue';
+import TableToolbar from '@/components/TableToolbar.vue';
+import TablePrintModal from '@/components/TablePrintModal.vue';
 import { useTrans } from '@/composables/useTrans';
 import { useTableFilters } from '@/composables/useTableFilters';
+import { useTableColumns } from '@/composables/useTableColumns';
 import { useResourceForm } from '@/composables/useResourceForm';
 
 const props = defineProps({
@@ -13,18 +16,30 @@ const props = defineProps({
     branches: { type: Array, default: () => [] },
     roles: { type: Array, default: () => [] },
     filters: { type: Object, default: () => ({ search: '' }) },
+    sortOptions: { type: Array, default: () => [] },
 });
 
 const { t } = useTrans();
-const { filters } = useTableFilters('users.index', {
+const { filters, toggleSort } = useTableFilters('users.index', {
     search: props.filters.search ?? '',
+    sort: props.filters.sort ?? '',
+    direction: props.filters.direction ?? 'desc',
 });
 
 const headers = [
-    { key: 'name', label: t('fields.name') },
-    { key: 'email', label: t('auth.email') },
-    { key: 'is_active', label: t('common.status') },
+    { key: 'name', label: t('fields.name'), sortable: true },
+    { key: 'email', label: t('auth.email'), sortable: true },
+    { key: 'is_active', label: t('common.status'), sortable: true },
 ];
+
+const { visibleHeaders, columnOptions, toggle: toggleColumn } = useTableColumns('users.index', headers);
+const printOpen = ref(false);
+const printRows = computed(() =>
+    (props.users.data ?? []).map((row) => ({
+        ...row,
+        is_active: row.is_active ? t('common.active') : t('common.inactive'),
+    })),
+);
 
 const roleItems = computed(() => props.roles.map((role) => ({ label: role, value: role })));
 const branchItems = computed(() =>
@@ -67,13 +82,24 @@ const {
             </div>
 
             <UCard>
-                <DataTable :headers="headers" :rows="users" :query="filters" striped actions>
+                <DataTable
+                    :headers="visibleHeaders"
+                    :rows="users"
+                    :query="filters"
+                    :sort="filters.sort"
+                    :direction="filters.direction"
+                    striped
+                    actions
+                    @sort="toggleSort"
+                >
                     <template #toolbar>
-                        <UInput
-                            v-model="filters.search"
-                            icon="i-heroicons-magnifying-glass"
-                            :placeholder="t('common.search')"
-                            class="w-full sm:max-w-xs"
+                        <TableToolbar
+                            :filters="filters"
+                            :sort-options="sortOptions"
+                            :column-options="columnOptions"
+                            :date-range="false"
+                            @toggle-column="toggleColumn"
+                            @print="printOpen = true"
                         />
                     </template>
 
@@ -137,5 +163,12 @@ const {
                 <UButton :label="t('common.save')" :loading="form.processing" @click="submit()" />
             </template>
         </FormModal>
+
+        <TablePrintModal
+            v-model:open="printOpen"
+            :title="t('nav.users')"
+            :headers="visibleHeaders"
+            :rows="printRows"
+        />
     </AppLayout>
 </template>

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\AppliesTableFilters;
 use App\Http\Controllers\Concerns\InteractsWithToast;
 use App\Http\Requests\ProductRequest;
 use App\Models\Product;
@@ -15,7 +16,10 @@ use Inertia\Response;
 
 class ProductController extends Controller
 {
-    use InteractsWithToast;
+    use AppliesTableFilters, InteractsWithToast;
+
+    /** @var array<int, string> */
+    protected array $sortable = ['name', 'sku', 'selling_price', 'is_active', 'created_at'];
 
     public function index(Request $request, FormSelectCatalog $catalog): Response
     {
@@ -23,13 +27,16 @@ class ProductController extends Controller
         $categoryFilter = $request->integer('category');
         $brandFilter = $request->integer('brand');
 
+        $query = Product::query()
+            ->with(['category', 'brand', 'media', 'variants'])
+            ->search($search)
+            ->when($categoryFilter, fn ($q) => $q->where('category_id', $categoryFilter))
+            ->when($brandFilter, fn ($q) => $q->where('brand_id', $brandFilter));
+        $this->applyDateRange($query, $request, 'created_at');
+        $this->applySort($query, $request, $this->sortable, 'id', 'desc');
+
         return Inertia::render('Products/Index', [
-            'products' => Product::query()
-                ->with(['category', 'brand', 'media', 'variants'])
-                ->search($search)
-                ->when($categoryFilter, fn ($q) => $q->where('category_id', $categoryFilter))
-                ->when($brandFilter, fn ($q) => $q->where('brand_id', $brandFilter))
-                ->latest()
+            'products' => $query
                 ->paginate(10)
                 ->withQueryString()
                 ->through(fn (Product $product) => [
@@ -58,10 +65,17 @@ class ProductController extends Controller
                         'selling_price' => (float) $variant->selling_price,
                     ])->all(),
                 ]),
+            'sortOptions' => [
+                ['value' => 'name', 'label' => __('fields.name')],
+                ['value' => 'sku', 'label' => __('fields.sku')],
+                ['value' => 'selling_price', 'label' => __('fields.selling_price')],
+                ['value' => 'created_at', 'label' => __('sales.date')],
+            ],
             'filters' => [
                 'search' => $search,
                 'category' => $categoryFilter ?: null,
                 'brand' => $brandFilter ?: null,
+                ...$this->tableFilterState($request, $this->sortable),
             ],
             'categories' => $catalog->categories(),
             'brands' => $catalog->brands(),

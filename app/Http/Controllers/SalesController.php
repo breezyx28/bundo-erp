@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\AppliesTableFilters;
 use App\Http\Controllers\Concerns\InteractsWithToast;
 use App\Http\Requests\SalesInvoiceRequest;
 use App\Models\Product;
@@ -18,7 +19,10 @@ use Inertia\Response;
 
 class SalesController extends Controller
 {
-    use InteractsWithToast;
+    use AppliesTableFilters, InteractsWithToast;
+
+    /** @var array<int, string> */
+    protected array $sortable = ['invoice_number', 'invoice_date', 'net_amount', 'balance', 'payment_status'];
 
     public function index(Request $request, FormSelectCatalog $catalog): Response
     {
@@ -28,12 +32,15 @@ class SalesController extends Controller
         $base = config('money.base');
         $currencyConfig = config("money.currencies.{$base}", ['symbol' => $base, 'decimals' => 2]);
 
+        $query = SalesInvoice::query()
+            ->search($search)
+            ->status($statusFilter)
+            ->with(['customer:id,name']);
+        $this->applyDateRange($query, $request, 'invoice_date');
+        $this->applySort($query, $request, $this->sortable, 'id', 'desc');
+
         return Inertia::render('Sales/Index', [
-            'invoices' => SalesInvoice::query()
-                ->search($search)
-                ->status($statusFilter)
-                ->with(['customer:id,name'])
-                ->latest('id')
+            'invoices' => $query
                 ->paginate(10)
                 ->withQueryString()
                 ->through(fn (SalesInvoice $inv) => [
@@ -71,9 +78,16 @@ class SalesController extends Controller
             'defaultExchangeRate' => (float) config('money.default_exchange_rate'),
             'currency' => ['symbol' => $currencyConfig['symbol'], 'decimals' => $currencyConfig['decimals']],
             'detail' => Inertia::optional(fn () => $this->detailData($request->integer('detail'))),
+            'sortOptions' => [
+                ['value' => 'invoice_number', 'label' => __('sales.invoice_number')],
+                ['value' => 'invoice_date', 'label' => __('sales.date')],
+                ['value' => 'net_amount', 'label' => __('sales.net')],
+                ['value' => 'balance', 'label' => __('sales.balance')],
+            ],
             'filters' => [
                 'search' => $search,
                 'status' => $statusFilter ?: null,
+                ...$this->tableFilterState($request, $this->sortable),
             ],
             'canCreate' => Gate::allows('invoices.create'),
             'canPay' => Gate::allows('payments.create'),

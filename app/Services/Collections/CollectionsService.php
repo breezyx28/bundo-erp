@@ -45,7 +45,7 @@ class CollectionsService
             if (! isset($rows[$key])) {
                 $rows[$key] = [
                     'customer_id' => $invoice->customer_id,
-                    'customer' => $invoice->customer->name,
+                    'customer' => $invoice->customer?->name ?? __('sales.walk_in'),
                     'current' => 0.0, 'd30' => 0.0, 'd60' => 0.0, 'd90' => 0.0,
                     'total' => 0.0, 'oldest_days' => 0,
                 ];

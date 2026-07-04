@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\AppliesTableFilters;
 use App\Http\Controllers\Concerns\InteractsWithToast;
 use App\Models\Product;
 use App\Models\ProductBatch;
@@ -19,7 +20,10 @@ use Inertia\Response;
 
 class InventoryController extends Controller
 {
-    use InteractsWithToast;
+    use AppliesTableFilters, InteractsWithToast;
+
+    /** @var array<int, string> */
+    protected array $sortable = ['name', 'sku', 'reorder_level'];
 
     public function index(Request $request, BranchContext $context, FormSelectCatalog $catalog): Response
     {
@@ -31,10 +35,12 @@ class InventoryController extends Controller
             ->groupBy('product_id')
             ->pluck('qty', 'product_id');
 
-        $products = Product::query()
+        $query = Product::query()
             ->active()
-            ->search($search)
-            ->orderBy('name')
+            ->search($search);
+        $this->applySort($query, $request, $this->sortable, 'name', 'asc');
+
+        $products = $query
             ->paginate(10)
             ->withQueryString();
 
@@ -66,9 +72,16 @@ class InventoryController extends Controller
             'branchName' => $context->currentBranch()?->name,
             'isConsolidated' => $context->isConsolidated(),
             'movements' => Inertia::optional(fn () => $this->movements($request->integer('movement_product'))),
+            'sortOptions' => [
+                ['value' => 'name', 'label' => __('fields.name')],
+                ['value' => 'sku', 'label' => __('fields.sku')],
+                ['value' => 'reorder_level', 'label' => __('fields.reorder_level')],
+            ],
             'filters' => [
                 'search' => $search,
                 'low_stock' => $onlyLowStock,
+                'sort' => in_array($request->string('sort')->toString(), $this->sortable, true) ? $request->string('sort')->toString() : null,
+                'direction' => strtolower((string) $request->string('direction')) === 'desc' ? 'desc' : 'asc',
             ],
             'canReceive' => Gate::allows('inventory.receive'),
             'canAdjust' => Gate::allows('inventory.adjust'),

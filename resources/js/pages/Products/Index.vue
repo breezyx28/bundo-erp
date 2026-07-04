@@ -1,38 +1,57 @@
 <script setup>
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { Head, useForm } from '@inertiajs/vue3';
 import { route } from 'ziggy-js';
 import AppLayout from '@/layouts/AppLayout.vue';
 import DataTable from '@/components/DataTable.vue';
 import FormModal from '@/components/FormModal.vue';
 import ConfirmModal from '@/components/ConfirmModal.vue';
+import TableToolbar from '@/components/TableToolbar.vue';
+import TablePrintModal from '@/components/TablePrintModal.vue';
 import { useTrans } from '@/composables/useTrans';
 import { useTableFilters } from '@/composables/useTableFilters';
+import { useTableColumns } from '@/composables/useTableColumns';
 import { useResourceForm } from '@/composables/useResourceForm';
 
 const props = defineProps({
     products: { type: Object, required: true },
     filters: { type: Object, default: () => ({ search: '', category: null, brand: null }) },
+    sortOptions: { type: Array, default: () => [] },
     categories: { type: Array, default: () => [] },
     brands: { type: Array, default: () => [] },
     canManage: { type: Boolean, default: false },
 });
 
 const { t } = useTrans();
-const { filters } = useTableFilters('products.index', {
+const { filters, toggleSort } = useTableFilters('products.index', {
     search: props.filters.search ?? '',
     category: props.filters.category ?? null,
     brand: props.filters.brand ?? null,
+    sort: props.filters.sort ?? '',
+    direction: props.filters.direction ?? 'desc',
+    date_from: props.filters.date_from ?? '',
+    date_to: props.filters.date_to ?? '',
 });
 
 const headers = [
     { key: 'image', label: '' },
-    { key: 'name', label: t('fields.name') },
-    { key: 'sku', label: t('fields.sku') },
+    { key: 'name', label: t('fields.name'), sortable: true },
+    { key: 'sku', label: t('fields.sku'), sortable: true },
     { key: 'category', label: t('fields.category') },
-    { key: 'selling_price', label: t('fields.selling_price') },
-    { key: 'is_active', label: t('common.status') },
+    { key: 'selling_price', label: t('fields.selling_price'), sortable: true, align: 'end' },
+    { key: 'is_active', label: t('common.status'), sortable: true },
 ];
+
+const { visibleHeaders, columnOptions, toggle: toggleColumn } = useTableColumns('products.index', headers);
+const printOpen = ref(false);
+const printRows = computed(() =>
+    (props.products.data ?? []).map((row) => ({
+        ...row,
+        category: row.category || '—',
+        selling_price: row.selling_price_formatted,
+        is_active: row.is_active ? t('common.active') : t('common.inactive'),
+    })),
+);
 
 const selectItems = (items, allLabel) => [
     { label: allLabel, value: null },
@@ -145,26 +164,38 @@ function submit() {
             </div>
 
             <UCard>
-                <DataTable :headers="headers" :rows="products" :query="filters" :actions="canManage">
+                <DataTable
+                    :headers="visibleHeaders"
+                    :rows="products"
+                    :query="filters"
+                    :sort="filters.sort"
+                    :direction="filters.direction"
+                    :actions="canManage"
+                    @sort="toggleSort"
+                >
                     <template #toolbar>
-                        <UInput
-                            v-model="filters.search"
-                            icon="i-heroicons-magnifying-glass"
-                            :placeholder="t('common.search')"
-                            class="w-full sm:max-w-xs"
-                        />
-                        <USelectMenu
-                            v-model="filters.category"
-                            :items="categoryItems"
-                            value-key="value"
-                            class="w-full sm:w-44"
-                        />
-                        <USelectMenu
-                            v-model="filters.brand"
-                            :items="brandItems"
-                            value-key="value"
-                            class="w-full sm:w-44"
-                        />
+                        <TableToolbar
+                            :filters="filters"
+                            :sort-options="sortOptions"
+                            :column-options="columnOptions"
+                            @toggle-column="toggleColumn"
+                            @print="printOpen = true"
+                        >
+                            <template #filters>
+                                <USelectMenu
+                                    v-model="filters.category"
+                                    :items="categoryItems"
+                                    value-key="value"
+                                    class="w-full sm:w-44"
+                                />
+                                <USelectMenu
+                                    v-model="filters.brand"
+                                    :items="brandItems"
+                                    value-key="value"
+                                    class="w-full sm:w-44"
+                                />
+                            </template>
+                        </TableToolbar>
                     </template>
 
                     <template #cell-image="{ row }">
@@ -188,7 +219,7 @@ function submit() {
                     </template>
 
                     <template #cell-selling_price="{ row }">
-                        <span class="tabular-nums">{{ row.selling_price_formatted }}</span>
+                        {{ row.selling_price_formatted }}
                     </template>
 
                     <template #cell-is_active="{ row }">
@@ -295,5 +326,12 @@ function submit() {
         </FormModal>
 
         <ConfirmModal v-model:open="deleteOpen" :loading="deleting" @confirm="destroy()" />
+
+        <TablePrintModal
+            v-model:open="printOpen"
+            :title="t('nav.products')"
+            :headers="visibleHeaders"
+            :rows="printRows"
+        />
     </AppLayout>
 </template>

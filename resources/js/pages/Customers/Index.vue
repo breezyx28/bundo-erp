@@ -1,33 +1,49 @@
 <script setup>
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { Head, useForm } from '@inertiajs/vue3';
 import AppLayout from '@/layouts/AppLayout.vue';
 import DataTable from '@/components/DataTable.vue';
 import FormModal from '@/components/FormModal.vue';
 import ConfirmModal from '@/components/ConfirmModal.vue';
+import TableToolbar from '@/components/TableToolbar.vue';
+import TablePrintModal from '@/components/TablePrintModal.vue';
 import { useTrans } from '@/composables/useTrans';
 import { useTableFilters } from '@/composables/useTableFilters';
+import { useTableColumns } from '@/composables/useTableColumns';
 import { useResourceForm } from '@/composables/useResourceForm';
 
 const props = defineProps({
     customers: { type: Object, required: true },
     filters: { type: Object, default: () => ({ search: '', type: '' }) },
+    sortOptions: { type: Array, default: () => [] },
     canManage: { type: Boolean, default: false },
 });
 
 const { t } = useTrans();
-const { filters } = useTableFilters('customers.index', {
+const { filters, toggleSort } = useTableFilters('customers.index', {
     search: props.filters.search ?? '',
     type: props.filters.type ?? '',
+    sort: props.filters.sort ?? '',
+    direction: props.filters.direction ?? 'desc',
 });
 
 const headers = [
-    { key: 'name', label: t('fields.name') },
-    { key: 'phone', label: t('fields.phone') },
-    { key: 'type', label: t('fields.type') },
-    { key: 'balance', label: t('fields.balance') },
+    { key: 'name', label: t('fields.name'), sortable: true },
+    { key: 'phone', label: t('fields.phone'), sortable: true },
+    { key: 'type', label: t('fields.type'), sortable: true },
+    { key: 'balance', label: t('fields.balance'), align: 'end' },
     { key: 'badges', label: t('fields.badges') },
 ];
+
+const { visibleHeaders, columnOptions, toggle: toggleColumn } = useTableColumns('customers.index', headers);
+const printOpen = ref(false);
+const printRows = computed(() =>
+    (props.customers.data ?? []).map((row) => ({
+        ...row,
+        type: t('fields.' + row.type),
+        badges: (row.badges ?? []).map((b) => b.label).join(', ') || '—',
+    })),
+);
 
 const typeItems = computed(() => [
     { label: t('common.all'), value: '' },
@@ -83,20 +99,34 @@ const {
             </div>
 
             <UCard>
-                <DataTable :headers="headers" :rows="customers" :query="filters" striped :actions="canManage">
+                <DataTable
+                    :headers="visibleHeaders"
+                    :rows="customers"
+                    :query="filters"
+                    :sort="filters.sort"
+                    :direction="filters.direction"
+                    striped
+                    :actions="canManage"
+                    @sort="toggleSort"
+                >
                     <template #toolbar>
-                        <USelectMenu
-                            v-model="filters.type"
-                            :items="typeItems"
-                            value-key="value"
-                            class="w-full sm:w-40"
-                        />
-                        <UInput
-                            v-model="filters.search"
-                            icon="i-heroicons-magnifying-glass"
-                            :placeholder="t('common.search')"
-                            class="w-full sm:max-w-xs"
-                        />
+                        <TableToolbar
+                            :filters="filters"
+                            :sort-options="sortOptions"
+                            :column-options="columnOptions"
+                            :date-range="false"
+                            @toggle-column="toggleColumn"
+                            @print="printOpen = true"
+                        >
+                            <template #filters>
+                                <USelectMenu
+                                    v-model="filters.type"
+                                    :items="typeItems"
+                                    value-key="value"
+                                    class="w-full sm:w-40"
+                                />
+                            </template>
+                        </TableToolbar>
                     </template>
 
                     <template #cell-type="{ row }">
@@ -173,5 +203,12 @@ const {
         </FormModal>
 
         <ConfirmModal v-model:open="deleteOpen" :loading="deleting" @confirm="destroy()" />
+
+        <TablePrintModal
+            v-model:open="printOpen"
+            :title="t('nav.customers')"
+            :headers="visibleHeaders"
+            :rows="printRows"
+        />
     </AppLayout>
 </template>

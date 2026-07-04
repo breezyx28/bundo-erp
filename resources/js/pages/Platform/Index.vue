@@ -1,17 +1,41 @@
 <script setup>
+import { computed, ref } from 'vue';
 import { Head } from '@inertiajs/vue3';
 import AppLayout from '@/layouts/AppLayout.vue';
 import StatCard from '@/components/StatCard.vue';
 import DataTable from '@/components/DataTable.vue';
+import TableToolbar from '@/components/TableToolbar.vue';
+import TablePrintModal from '@/components/TablePrintModal.vue';
+import StatusBadgeCell from '@/components/StatusBadgeCell.vue';
 import { useTrans } from '@/composables/useTrans';
+import { useTableColumns } from '@/composables/useTableColumns';
+import { numericHeader, textHeader } from '@/utils/tableHeaders';
 
-defineProps({
+const props = defineProps({
     summary: { type: Object, required: true },
     tenants: { type: Array, default: () => [] },
     health: { type: Object, required: true },
 });
 
 const { t } = useTrans();
+
+const headers = [
+    textHeader('name', t('fields.name')),
+    numericHeader('branches', t('nav.branches')),
+    numericHeader('users', t('nav.users')),
+    textHeader('is_active', t('common.status')),
+];
+
+const { visibleHeaders, columnOptions, toggle: toggleColumn } = useTableColumns('platform.index.tenants', headers);
+const printOpen = ref(false);
+const tableFilters = ref({ search: '' });
+
+const printRows = computed(() =>
+    props.tenants.map((row) => ({
+        ...row,
+        is_active: row.is_active ? t('common.active') : t('common.inactive'),
+    })),
+);
 </script>
 
 <template>
@@ -41,21 +65,23 @@ const { t } = useTrans();
                         </div>
                     </template>
 
-                    <DataTable
-                        :headers="[
-                            { key: 'name', label: t('fields.name') },
-                            { key: 'branches', label: t('nav.branches'), class: 'text-end' },
-                            { key: 'users', label: t('nav.users'), class: 'text-end' },
-                            { key: 'is_active', label: t('common.status') },
-                        ]"
-                        :rows="tenants"
-                        striped
-                    >
+                    <DataTable :headers="visibleHeaders" :rows="tenants" striped>
+                        <template #toolbar>
+                            <TableToolbar
+                                :filters="tableFilters"
+                                :column-options="columnOptions"
+                                :date-range="false"
+                                :search="false"
+                                @toggle-column="toggleColumn"
+                                @print="printOpen = true"
+                            />
+                        </template>
+
                         <template #cell-is_active="{ row }">
-                            <UBadge
-                                :color="row.is_active ? 'success' : 'neutral'"
-                                variant="subtle"
-                                :label="row.is_active ? t('common.active') : t('common.inactive')"
+                            <StatusBadgeCell
+                                :active="row.is_active"
+                                :active-label="t('common.active')"
+                                :inactive-label="t('common.inactive')"
                             />
                         </template>
                     </DataTable>
@@ -88,5 +114,12 @@ const { t } = useTrans();
                 </UCard>
             </div>
         </div>
+
+        <TablePrintModal
+            v-model:open="printOpen"
+            :title="t('platform.tenant_list')"
+            :headers="visibleHeaders"
+            :rows="printRows"
+        />
     </AppLayout>
 </template>

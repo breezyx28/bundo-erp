@@ -6,8 +6,11 @@ import AppLayout from '@/layouts/AppLayout.vue';
 import DataTable from '@/components/DataTable.vue';
 import FormModal from '@/components/FormModal.vue';
 import ConfirmModal from '@/components/ConfirmModal.vue';
+import TableToolbar from '@/components/TableToolbar.vue';
+import TablePrintModal from '@/components/TablePrintModal.vue';
 import { useTrans } from '@/composables/useTrans';
 import { useTableFilters } from '@/composables/useTableFilters';
+import { useTableColumns } from '@/composables/useTableColumns';
 
 const props = defineProps({
     invoices: { type: Object, required: true },
@@ -17,6 +20,7 @@ const props = defineProps({
     statusOptions: { type: Array, default: () => [] },
     methodOptions: { type: Array, default: () => [] },
     discountTypeOptions: { type: Array, default: () => [] },
+    sortOptions: { type: Array, default: () => [] },
     defaultExchangeRate: { type: Number, default: 0 },
     currency: { type: Object, default: () => ({ symbol: '', decimals: 2 }) },
     detail: { type: Object, default: null },
@@ -27,9 +31,13 @@ const props = defineProps({
 });
 
 const { t } = useTrans();
-const { filters } = useTableFilters('sales.index', {
+const { filters, toggleSort } = useTableFilters('sales.index', {
     search: props.filters.search ?? '',
     status: props.filters.status ?? '',
+    sort: props.filters.sort ?? '',
+    direction: props.filters.direction ?? 'desc',
+    date_from: props.filters.date_from ?? '',
+    date_to: props.filters.date_to ?? '',
 });
 
 const money = (amount) =>
@@ -39,13 +47,23 @@ const money = (amount) =>
     })}`;
 
 const headers = [
-    { key: 'invoice_number', label: t('sales.invoice_number') },
+    { key: 'invoice_number', label: t('sales.invoice_number'), sortable: true },
     { key: 'customer', label: t('nav.customers') },
-    { key: 'invoice_date', label: t('sales.date') },
-    { key: 'net_amount', label: t('sales.net'), class: 'text-end' },
-    { key: 'balance', label: t('sales.balance'), class: 'text-end' },
+    { key: 'invoice_date', label: t('sales.date'), sortable: true },
+    { key: 'net_amount', label: t('sales.net'), align: 'end', sortable: true },
+    { key: 'balance', label: t('sales.balance'), align: 'end', sortable: true },
     { key: 'payment_status', label: t('common.status') },
 ];
+
+const { visibleHeaders, columnOptions, toggle: toggleColumn } = useTableColumns('sales.index', headers);
+const printOpen = ref(false);
+const printRows = computed(() =>
+    (props.invoices.data ?? []).map((row) => ({
+        ...row,
+        customer: row.customer ?? t('sales.walk_in'),
+        payment_status: t('sales.pay.' + row.payment_status),
+    })),
+);
 
 const statusItems = computed(() => [{ label: t('common.all'), value: '' }, ...props.statusOptions]);
 const customerItems = computed(() => props.customerOptions.map((c) => ({ label: c.name, value: c.id })));
@@ -115,11 +133,25 @@ const totals = computed(() => {
     };
 });
 
+const creditNeedsCustomer = computed(
+    () => form.sale_type === 'credit' && !form.customer_id,
+);
+
+// A future due date implies the customer pays later, i.e. a credit sale.
+function onDueDateChange() {
+    if (form.due_date && form.due_date > today) {
+        form.sale_type = 'credit';
+    }
+}
+
 function submit() {
     form.post(route('sales.store'), {
         preserveScroll: true,
         onSuccess: () => {
             formOpen.value = false;
+            // Clear stale filters so the new invoice is visible on page 1.
+            filters.search = '';
+            filters.status = '';
         },
     });
 }
@@ -195,15 +227,28 @@ function openDetail(id) {
             </div>
 
             <UCard>
-                <DataTable :headers="headers" :rows="invoices" :query="filters" actions>
+                <DataTable
+                    :headers="visibleHeaders"
+                    :rows="invoices"
+                    :query="filters"
+                    :sort="filters.sort"
+                    :direction="filters.direction"
+                    actions
+                    @sort="toggleSort"
+                >
                     <template #toolbar>
-                        <UInput
-                            v-model="filters.search"
-                            icon="i-heroicons-magnifying-glass"
-                            :placeholder="t('common.search')"
-                            class="w-full sm:max-w-xs"
-                        />
-                        <USelectMenu v-model="filters.status" :items="statusItems" value-key="value" class="w-full sm:w-40" />
+                        <TableToolbar
+                            :filters="filters"
+                            :sort-options="sortOptions"
+                            :column-options="columnOptions"
+                            :search-placeholder="t('common.search')"
+                            @toggle-column="toggleColumn"
+                            @print="printOpen = true"
+                        >
+                            <template #filters>
+                                <USelectMenu v-model="filters.status" :items="statusItems" value-key="value" class="w-full sm:w-40" />
+                            </template>
+                        </TableToolbar>
                     </template>
 
                     <template #cell-customer="{ row }">
@@ -244,6 +289,9 @@ function openDetail(id) {
                     </UFormField>
                     <UFormField :label="t('sales.date')" :error="form.errors.invoice_date">
                         <UInput v-model="form.invoice_date" type="date" class="w-full" />
+                    </UFormField>
+                    <UFormField :label="t('sales.due_date')" :error="form.errors.due_date" :hint="t('sales.due_date_hint')">
+                        <UInput v-model="form.due_date" type="date" class="w-full" @update:model-value="onDueDateChange" />
                     </UFormField>
                 </div>
 
@@ -286,17 +334,14 @@ function openDetail(id) {
                     </UFormField>
                 </div>
 
-                <div v-if="form.sale_type === 'credit'" class="grid gap-4 sm:grid-cols-2">
-                    <UFormField :label="t('sales.due_date')" :error="form.errors.due_date">
-                        <UInput v-model="form.due_date" type="date" class="w-full" />
-                    </UFormField>
-                    <UFormField :label="t('sales.initial_payment')" :error="form.errors.paid_amount">
-                        <UInput v-model="form.paid_amount" type="number" step="0.01" min="0" class="w-full" />
-                    </UFormField>
-                </div>
+                <UFormField v-if="form.sale_type === 'credit'" :label="t('sales.initial_payment')" :error="form.errors.paid_amount">
+                    <UInput v-model="form.paid_amount" type="number" step="0.01" min="0" class="w-full" />
+                </UFormField>
                 <UFormField v-else :label="t('purchasing.method')" :error="form.errors.payment_method">
                     <USelectMenu v-model="form.payment_method" :items="methodItems" value-key="value" class="w-full" />
                 </UFormField>
+
+                <p v-if="creditNeedsCustomer" class="text-xs text-error">{{ t('sales.credit_requires_customer') }}</p>
 
                 <UFormField :label="t('fields.notes')" :error="form.errors.notes">
                     <UTextarea v-model="form.notes" :rows="2" class="w-full" />
@@ -310,7 +355,7 @@ function openDetail(id) {
             </div>
             <template #footer="{ close }">
                 <UButton color="neutral" variant="ghost" :label="t('common.cancel')" @click="close" />
-                <UButton :label="t('sales.complete_sale')" :loading="form.processing" @click="submit()" />
+                <UButton :label="t('sales.complete_sale')" :loading="form.processing" :disabled="creditNeedsCustomer" @click="submit()" />
             </template>
         </FormModal>
 
@@ -377,6 +422,13 @@ function openDetail(id) {
             :message="t('common.confirm') + '?'"
             :confirm-label="t('sales.void')"
             @confirm="confirmVoid()"
+        />
+
+        <TablePrintModal
+            v-model:open="printOpen"
+            :title="t('nav.sales')"
+            :headers="visibleHeaders"
+            :rows="printRows"
         />
     </AppLayout>
 </template>

@@ -5,9 +5,13 @@ import { route } from 'ziggy-js';
 import AppLayout from '@/layouts/AppLayout.vue';
 import DataTable from '@/components/DataTable.vue';
 import StatCard from '@/components/StatCard.vue';
+import TableToolbar from '@/components/TableToolbar.vue';
+import TablePrintModal from '@/components/TablePrintModal.vue';
 import { useTrans } from '@/composables/useTrans';
 import { useMoney } from '@/composables/useMoney';
+import { useTableColumns } from '@/composables/useTableColumns';
 import { chartBase } from '@/composables/useChartBase';
+import { numericHeader, textHeader } from '@/utils/tableHeaders';
 
 const props = defineProps({
     forecast: { type: Object, required: true },
@@ -67,37 +71,51 @@ const rankingOptions = computed(() => {
 });
 
 const bestSellerHeaders = [
-    { key: 'name', label: t('analytics.product') },
-    { key: 'qty', label: t('analytics.qty'), class: 'text-end' },
-    { key: 'revenue', label: t('analytics.revenue'), class: 'text-end' },
+    textHeader('name', t('analytics.product')),
+    numericHeader('qty', t('analytics.qty')),
+    numericHeader('revenue', t('analytics.revenue')),
 ];
 const slowMoverHeaders = [
-    { key: 'name', label: t('analytics.product') },
-    { key: 'stock', label: t('analytics.in_stock'), class: 'text-end' },
-    { key: 'sold', label: t('analytics.sold_90d'), class: 'text-end' },
+    textHeader('name', t('analytics.product')),
+    numericHeader('stock', t('analytics.in_stock')),
+    numericHeader('sold', t('analytics.sold_90d')),
 ];
 const customerHeaders = [
-    { key: 'name', label: t('analytics.customer') },
-    { key: 'clv', label: t('analytics.lifetime_value'), class: 'text-end' },
-    { key: 'orders', label: t('analytics.orders'), class: 'text-end' },
-    { key: 'last_order', label: t('analytics.last_order') },
-    { key: 'segment', label: t('analytics.segment') },
+    textHeader('name', t('analytics.customer')),
+    numericHeader('clv', t('analytics.lifetime_value')),
+    numericHeader('orders', t('analytics.orders')),
+    textHeader('last_order', t('analytics.last_order')),
+    textHeader('segment', t('analytics.segment')),
 ];
 const inventoryHeaders = [
-    { key: 'name', label: t('analytics.product') },
-    { key: 'stock', label: t('analytics.in_stock'), class: 'text-end' },
-    { key: 'daily', label: t('analytics.daily_demand'), class: 'text-end' },
-    { key: 'days_left', label: t('analytics.days_left'), class: 'text-end' },
-    { key: 'stockout', label: t('analytics.stockout_date') },
-    { key: 'reorder', label: t('analytics.suggested_reorder'), class: 'text-end' },
+    textHeader('name', t('analytics.product')),
+    numericHeader('stock', t('analytics.in_stock')),
+    numericHeader('daily', t('analytics.daily_demand')),
+    numericHeader('days_left', t('analytics.days_left')),
+    textHeader('stockout', t('analytics.stockout_date')),
+    numericHeader('reorder', t('analytics.suggested_reorder')),
 ];
 const branchHeaders = [
-    { key: 'rank', label: '#' },
-    { key: 'branch', label: t('analytics.branch') },
-    { key: 'revenue', label: t('analytics.revenue'), class: 'text-end' },
-    { key: 'profit', label: t('analytics.profit'), class: 'text-end' },
-    { key: 'outstanding', label: t('analytics.outstanding'), class: 'text-end' },
+    textHeader('rank', '#'),
+    textHeader('branch', t('analytics.branch')),
+    numericHeader('revenue', t('analytics.revenue')),
+    numericHeader('profit', t('analytics.profit')),
+    numericHeader('outstanding', t('analytics.outstanding')),
 ];
+
+function clientTable(storageKey, headers) {
+    const { visibleHeaders, columnOptions, toggle } = useTableColumns(storageKey, headers);
+    const printOpen = ref(false);
+    const tableFilters = ref({ search: '' });
+
+    return { visibleHeaders, columnOptions, toggle, printOpen, tableFilters };
+}
+
+const bestSellers = clientTable('analytics.best_sellers', bestSellerHeaders);
+const slowMovers = clientTable('analytics.slow_movers', slowMoverHeaders);
+const customersTable = clientTable('analytics.customers', customerHeaders);
+const inventoryTable = clientTable('analytics.inventory', inventoryHeaders);
+const branchesTable = clientTable('analytics.branches', branchHeaders);
 
 const segmentColor = (s) => ({
     loyal: 'success', active: 'info', at_risk: 'warning', churned: 'error',
@@ -153,10 +171,20 @@ function refresh() {
             <div v-else-if="tab === 'products'" class="grid gap-4 lg:grid-cols-2">
                 <UCard>
                     <template #header><span class="font-medium">{{ t('analytics.best_sellers') }}</span></template>
-                    <DataTable :headers="bestSellerHeaders" :rows="products.best" row-key="name">
+                    <DataTable :headers="bestSellers.visibleHeaders" :rows="products.best" row-key="name">
+                        <template #toolbar>
+                            <TableToolbar
+                                :filters="bestSellers.tableFilters"
+                                :column-options="bestSellers.columnOptions"
+                                :date-range="false"
+                                :search="false"
+                                @toggle-column="bestSellers.toggle"
+                                @print="bestSellers.printOpen = true"
+                            />
+                        </template>
                         <template #cell-name="{ row }"><span class="font-medium">{{ row.name }}</span></template>
-                        <template #cell-qty="{ value }"><span class="tabular-nums">{{ value.toLocaleString() }}</span></template>
-                        <template #cell-revenue="{ row }"><span class="tabular-nums">{{ fmt(row.revenue) }}</span></template>
+                        <template #cell-qty="{ value }">{{ value.toLocaleString() }}</template>
+                        <template #cell-revenue="{ row }">{{ fmt(row.revenue) }}</template>
                     </DataTable>
                 </UCard>
                 <UCard>
@@ -166,10 +194,20 @@ function refresh() {
                             <div class="text-sm text-muted">{{ t('analytics.slow_hint') }}</div>
                         </div>
                     </template>
-                    <DataTable :headers="slowMoverHeaders" :rows="products.slow" row-key="name">
+                    <DataTable :headers="slowMovers.visibleHeaders" :rows="products.slow" row-key="name">
+                        <template #toolbar>
+                            <TableToolbar
+                                :filters="slowMovers.tableFilters"
+                                :column-options="slowMovers.columnOptions"
+                                :date-range="false"
+                                :search="false"
+                                @toggle-column="slowMovers.toggle"
+                                @print="slowMovers.printOpen = true"
+                            />
+                        </template>
                         <template #cell-name="{ row }"><span class="font-medium">{{ row.name }}</span></template>
-                        <template #cell-stock="{ value }"><span class="tabular-nums">{{ value.toLocaleString() }}</span></template>
-                        <template #cell-sold="{ value }"><span class="tabular-nums" :class="value === 0 ? 'text-error' : ''">{{ value.toLocaleString() }}</span></template>
+                        <template #cell-stock="{ value }">{{ value.toLocaleString() }}</template>
+                        <template #cell-sold="{ value }"><span :class="value === 0 ? 'text-error' : ''">{{ value.toLocaleString() }}</span></template>
                     </DataTable>
                 </UCard>
             </div>
@@ -182,10 +220,20 @@ function refresh() {
                             <div class="text-sm text-muted">{{ t('analytics.customer_hint') }}</div>
                         </div>
                     </template>
-                    <DataTable :headers="customerHeaders" :rows="customers" row-key="name">
+                    <DataTable :headers="customersTable.visibleHeaders" :rows="customers" row-key="name">
+                        <template #toolbar>
+                            <TableToolbar
+                                :filters="customersTable.tableFilters"
+                                :column-options="customersTable.columnOptions"
+                                :date-range="false"
+                                :search="false"
+                                @toggle-column="customersTable.toggle"
+                                @print="customersTable.printOpen = true"
+                            />
+                        </template>
                         <template #cell-name="{ row }"><span class="font-medium">{{ row.name }}</span></template>
-                        <template #cell-clv="{ row }"><span class="tabular-nums text-success">{{ fmt(row.clv) }}</span></template>
-                        <template #cell-orders="{ value }"><span class="tabular-nums">{{ value }}</span></template>
+                        <template #cell-clv="{ row }"><span class="text-success">{{ fmt(row.clv) }}</span></template>
+                        <template #cell-orders="{ value }">{{ value }}</template>
                         <template #cell-last_order="{ row }">
                             <span class="text-sm text-muted">{{ row.last_order }}
                                 <span class="text-xs">({{ t('analytics.days_ago', { count: row.days_since }) }})</span>
@@ -206,14 +254,24 @@ function refresh() {
                             <div class="text-sm text-muted">{{ t('analytics.reorder_hint') }}</div>
                         </div>
                     </template>
-                    <DataTable :headers="inventoryHeaders" :rows="inventory" row-key="name">
+                    <DataTable :headers="inventoryTable.visibleHeaders" :rows="inventory" row-key="name">
+                        <template #toolbar>
+                            <TableToolbar
+                                :filters="inventoryTable.tableFilters"
+                                :column-options="inventoryTable.columnOptions"
+                                :date-range="false"
+                                :search="false"
+                                @toggle-column="inventoryTable.toggle"
+                                @print="inventoryTable.printOpen = true"
+                            />
+                        </template>
                         <template #empty>{{ t('analytics.no_reorder_needed') }}</template>
                         <template #cell-name="{ row }"><span class="font-medium">{{ row.name }}</span></template>
-                        <template #cell-stock="{ value }"><span class="tabular-nums">{{ value.toLocaleString() }}</span></template>
-                        <template #cell-daily="{ value }"><span class="tabular-nums">{{ Number(value).toFixed(2) }}</span></template>
-                        <template #cell-days_left="{ value }"><span class="tabular-nums" :class="value <= 14 ? 'font-semibold text-error' : 'text-warning'">{{ value }}</span></template>
+                        <template #cell-stock="{ value }">{{ value.toLocaleString() }}</template>
+                        <template #cell-daily="{ value }">{{ Number(value).toFixed(2) }}</template>
+                        <template #cell-days_left="{ value }"><span :class="value <= 14 ? 'font-semibold text-error' : 'text-warning'">{{ value }}</span></template>
                         <template #cell-stockout="{ value }"><span class="text-sm text-muted">{{ value }}</span></template>
-                        <template #cell-reorder="{ value }"><span class="font-semibold tabular-nums text-primary">{{ value.toLocaleString() }}</span></template>
+                        <template #cell-reorder="{ value }"><span class="font-semibold text-primary">{{ value.toLocaleString() }}</span></template>
                     </DataTable>
                 </UCard>
             </div>
@@ -225,17 +283,33 @@ function refresh() {
                 </UCard>
                 <UCard class="lg:col-span-2">
                     <template #header><span class="font-medium">{{ t('analytics.branch_scorecard') }}</span></template>
-                    <DataTable :headers="branchHeaders" :rows="ranking" row-key="branch">
+                    <DataTable :headers="branchesTable.visibleHeaders" :rows="ranking" row-key="branch">
+                        <template #toolbar>
+                            <TableToolbar
+                                :filters="branchesTable.tableFilters"
+                                :column-options="branchesTable.columnOptions"
+                                :date-range="false"
+                                :search="false"
+                                @toggle-column="branchesTable.toggle"
+                                @print="branchesTable.printOpen = true"
+                            />
+                        </template>
                         <template #cell-rank="{ row }">
                             <UBadge :color="row.rank === 1 ? 'success' : 'neutral'" variant="subtle" size="sm" :label="String(row.rank)" />
                         </template>
                         <template #cell-branch="{ row }"><span class="font-medium">{{ row.branch }}</span></template>
-                        <template #cell-revenue="{ row }"><span class="tabular-nums">{{ fmt(row.revenue) }}</span></template>
-                        <template #cell-profit="{ row }"><span class="font-semibold tabular-nums" :class="row.profit >= 0 ? 'text-success' : 'text-error'">{{ fmt(row.profit) }}</span></template>
-                        <template #cell-outstanding="{ row }"><span class="tabular-nums text-warning">{{ fmt(row.outstanding) }}</span></template>
+                        <template #cell-revenue="{ row }">{{ fmt(row.revenue) }}</template>
+                        <template #cell-profit="{ row }"><span class="font-semibold" :class="row.profit >= 0 ? 'text-success' : 'text-error'">{{ fmt(row.profit) }}</span></template>
+                        <template #cell-outstanding="{ row }"><span class="text-warning">{{ fmt(row.outstanding) }}</span></template>
                     </DataTable>
                 </UCard>
             </div>
         </div>
+
+        <TablePrintModal v-model:open="bestSellers.printOpen" :title="t('analytics.best_sellers')" :headers="bestSellers.visibleHeaders" :rows="products.best" />
+        <TablePrintModal v-model:open="slowMovers.printOpen" :title="t('analytics.slow_movers')" :headers="slowMovers.visibleHeaders" :rows="products.slow" />
+        <TablePrintModal v-model:open="customersTable.printOpen" :title="t('analytics.customer_value')" :headers="customersTable.visibleHeaders" :rows="customers" />
+        <TablePrintModal v-model:open="inventoryTable.printOpen" :title="t('analytics.reorder_suggestions')" :headers="inventoryTable.visibleHeaders" :rows="inventory" />
+        <TablePrintModal v-model:open="branchesTable.printOpen" :title="t('analytics.branch_scorecard')" :headers="branchesTable.visibleHeaders" :rows="ranking" />
     </AppLayout>
 </template>

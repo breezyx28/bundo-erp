@@ -10,6 +10,7 @@ use App\Models\Tenant;
 use App\Models\User;
 use App\Services\Branch\BranchContext;
 use App\Services\Inventory\InventoryService;
+use App\Services\Purchasing\PayablesService;
 use App\Services\Purchasing\PurchaseService;
 use Database\Seeders\ModuleSeeder;
 use Database\Seeders\RolesAndPermissionsSeeder;
@@ -141,5 +142,42 @@ class PurchaseOrderTest extends TestCase
 
         $this->expectException(LogicException::class);
         $this->service->cancel($order->refresh());
+    }
+
+    public function test_unpaid_purchase_appears_in_payables_aging(): void
+    {
+        $product = Product::factory()->for($this->tenant)->create();
+        $order = $this->service->save([
+            'supplier_id' => $this->supplier->id,
+            'order_date' => now()->toDateString(),
+            'payment_due_date' => now()->addDays(30)->toDateString(),
+        ], [
+            ['product_id' => $product->id, 'quantity' => 5, 'cost_per_unit' => 2000],
+        ]);
+
+        $aging = app(PayablesService::class)->aging();
+
+        $this->assertCount(1, $aging);
+        $this->assertSame('Gezira Leather', $aging[0]['supplier']);
+        $this->assertSame(10000.0, $aging[0]['total']);
+        $this->assertSame(0, $aging[0]['oldest_days']);
+    }
+
+    public function test_debts_index_includes_supplier_payables(): void
+    {
+        $product = Product::factory()->for($this->tenant)->create();
+        $this->service->save([
+            'supplier_id' => $this->supplier->id,
+            'order_date' => now()->toDateString(),
+            'payment_due_date' => now()->addDays(20)->toDateString(),
+        ], [
+            ['product_id' => $product->id, 'quantity' => 3, 'cost_per_unit' => 1500],
+        ]);
+
+        $this->get(route('debts.index'))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('payables.data.0.supplier', 'Gezira Leather')
+                ->where('payablesSummary.total', fn ($total) => str_contains((string) $total, '4')));
     }
 }

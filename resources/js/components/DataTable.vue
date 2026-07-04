@@ -4,7 +4,7 @@ import { router } from '@inertiajs/vue3';
 import { useTrans } from '@/composables/useTrans';
 
 const props = defineProps({
-    // [{ key, label, class?, align? }]
+    // [{ key, label, class?, align?, sortable? }]
     headers: { type: Array, required: true },
     // Laravel paginator serialized to array (data, links, current_page, ...)
     // or a plain array of rows.
@@ -16,9 +16,23 @@ const props = defineProps({
     // Whether an actions column should be rendered.
     actions: { type: Boolean, default: false },
     loading: { type: Boolean, default: false },
+    // Current sort state (for sortable headers).
+    sort: { type: String, default: '' },
+    direction: { type: String, default: 'desc' },
 });
 
+const emit = defineEmits(['sort']);
+
 const { t } = useTrans();
+
+function sortIcon(header) {
+    if (!header.sortable || props.sort !== header.key) {
+        return 'i-heroicons-arrows-up-down';
+    }
+    return props.direction === 'asc'
+        ? 'i-heroicons-bars-arrow-up'
+        : 'i-heroicons-bars-arrow-down';
+}
 
 const isPaginator = computed(
     () => !Array.isArray(props.rows) && Array.isArray(props.rows?.data),
@@ -31,6 +45,18 @@ const items = computed(() =>
 const colspan = computed(
     () => props.headers.length + (props.actions ? 1 : 0),
 );
+
+// Resolve a header's alignment. Numeric columns should use `align: 'end'`, which
+// also enables tabular figures so digits line up under their header.
+function alignClass(header) {
+    const align = header.align ?? (header.class?.includes('text-end') ? 'end' : 'start');
+
+    return {
+        end: 'text-end tabular-nums',
+        center: 'text-center',
+        start: 'text-start',
+    }[align] ?? 'text-start';
+}
 
 function goToPage(page) {
     const path = props.rows.path || window.location.pathname;
@@ -59,10 +85,14 @@ function goToPage(page) {
                         <th
                             v-for="header in headers"
                             :key="header.key"
-                            class="px-4 py-3 text-start font-medium text-muted whitespace-nowrap"
-                            :class="header.class"
+                            class="px-4 py-3 font-medium text-muted whitespace-nowrap"
+                            :class="[alignClass(header), header.class, header.sortable ? 'cursor-pointer select-none hover:text-highlighted' : '']"
+                            @click="header.sortable && emit('sort', header.key)"
                         >
-                            {{ header.label }}
+                            <span class="inline-flex items-center gap-1">
+                                {{ header.label }}
+                                <UIcon v-if="header.sortable" :name="sortIcon(header)" class="size-3.5 opacity-60" />
+                            </span>
                         </th>
                         <th
                             v-if="actions"
@@ -83,7 +113,7 @@ function goToPage(page) {
                             v-for="header in headers"
                             :key="header.key"
                             class="px-4 py-3 align-middle"
-                            :class="header.class"
+                            :class="[alignClass(header), header.class]"
                         >
                             <slot
                                 :name="`cell-${header.key}`"

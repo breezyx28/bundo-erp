@@ -1,13 +1,16 @@
 <script setup>
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { Head, useForm } from '@inertiajs/vue3';
 import { route } from 'ziggy-js';
 import AppLayout from '@/layouts/AppLayout.vue';
 import DataTable from '@/components/DataTable.vue';
 import FormModal from '@/components/FormModal.vue';
 import ConfirmModal from '@/components/ConfirmModal.vue';
+import TableToolbar from '@/components/TableToolbar.vue';
+import TablePrintModal from '@/components/TablePrintModal.vue';
 import { useTrans } from '@/composables/useTrans';
 import { useTableFilters } from '@/composables/useTableFilters';
+import { useTableColumns } from '@/composables/useTableColumns';
 import { useResourceForm } from '@/composables/useResourceForm';
 
 const props = defineProps({
@@ -16,24 +19,37 @@ const props = defineProps({
     categoryOptions: { type: Array, default: () => [] },
     methodOptions: { type: Array, default: () => [] },
     poOptions: { type: Array, default: () => [] },
+    sortOptions: { type: Array, default: () => [] },
     filters: { type: Object, default: () => ({}) },
     canManage: { type: Boolean, default: false },
 });
 
 const { t } = useTrans();
-const { filters } = useTableFilters('expenses.index', {
+const { filters, toggleSort } = useTableFilters('expenses.index', {
     search: props.filters.search ?? '',
     category: props.filters.category ?? null,
     from: props.filters.from ?? '',
     to: props.filters.to ?? '',
+    sort: props.filters.sort ?? '',
+    direction: props.filters.direction ?? 'desc',
 });
 
 const headers = [
-    { key: 'expense_date', label: t('sales.date') },
+    { key: 'expense_date', label: t('sales.date'), sortable: true },
     { key: 'category', label: t('fields.category') },
     { key: 'description', label: t('fields.description') },
-    { key: 'amount', label: t('purchasing.amount'), class: 'text-end' },
+    { key: 'amount', label: t('purchasing.amount'), align: 'end', sortable: true },
 ];
+
+const { visibleHeaders, columnOptions, toggle: toggleColumn } = useTableColumns('expenses.index', headers);
+const printOpen = ref(false);
+const printRows = computed(() =>
+    (props.expenses.data ?? []).map((row) => ({
+        ...row,
+        amount: row.amount_formatted,
+        category: row.category ?? '—',
+    })),
+);
 
 const categoryItems = computed(() => [
     { label: t('common.all'), value: null },
@@ -184,13 +200,23 @@ function submit() {
             </UCard>
 
             <UCard>
-                <DataTable :headers="headers" :rows="expenses" :query="filters" :actions="canManage">
+                <DataTable
+                    :headers="visibleHeaders"
+                    :rows="expenses"
+                    :query="filters"
+                    :sort="filters.sort"
+                    :direction="filters.direction"
+                    :actions="canManage"
+                    @sort="toggleSort"
+                >
                     <template #toolbar>
-                        <UInput
-                            v-model="filters.search"
-                            icon="i-heroicons-magnifying-glass"
-                            :placeholder="t('common.search')"
-                            class="w-full sm:max-w-xs"
+                        <TableToolbar
+                            :filters="filters"
+                            :sort-options="sortOptions"
+                            :column-options="columnOptions"
+                            :date-range="false"
+                            @toggle-column="toggleColumn"
+                            @print="printOpen = true"
                         />
                     </template>
 
@@ -292,5 +318,12 @@ function submit() {
         </FormModal>
 
         <ConfirmModal v-model:open="deleteOpen" :loading="deleting" @confirm="destroy()" />
+
+        <TablePrintModal
+            v-model:open="printOpen"
+            :title="t('nav.expenses')"
+            :headers="visibleHeaders"
+            :rows="printRows"
+        />
     </AppLayout>
 </template>

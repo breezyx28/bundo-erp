@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\AppliesTableFilters;
 use App\Http\Controllers\Concerns\InteractsWithToast;
 use App\Models\LogisticsCompany;
 use App\Models\SalesInvoice;
@@ -19,7 +20,10 @@ use Inertia\Response;
 
 class ShipmentController extends Controller
 {
-    use InteractsWithToast;
+    use AppliesTableFilters, InteractsWithToast;
+
+    /** @var array<int, string> */
+    protected array $sortable = ['tracking_number', 'status', 'shipping_cost'];
 
     public function index(Request $request, ShippingService $service, FormSelectCatalog $catalog): Response
     {
@@ -30,12 +34,14 @@ class ShipmentController extends Controller
 
         $report = $service->report($from, $to);
 
+        $query = Shipment::query()
+            ->search($search)
+            ->status($statusFilter)
+            ->with(['customer:id,name', 'logisticsCompany:id,name', 'invoice:id,invoice_number']);
+        $this->applySort($query, $request, $this->sortable, 'id', 'desc');
+
         return Inertia::render('Shipments/Index', [
-            'shipments' => Shipment::query()
-                ->search($search)
-                ->status($statusFilter)
-                ->with(['customer:id,name', 'logisticsCompany:id,name', 'invoice:id,invoice_number'])
-                ->latest('id')
+            'shipments' => $query
                 ->paginate(10)
                 ->withQueryString()
                 ->through(fn (Shipment $s) => [
@@ -69,11 +75,18 @@ class ShipmentController extends Controller
             'deliveredStatus' => Shipment::STATUS_DELIVERED,
             'detail' => Inertia::optional(fn () => $this->detailData($request->integer('detail'))),
             'returnOptions' => Inertia::optional(fn () => $this->returnProductOptions($request->integer('return_shipment'))),
+            'sortOptions' => [
+                ['value' => 'tracking_number', 'label' => __('shipping.tracking')],
+                ['value' => 'status', 'label' => __('common.status')],
+                ['value' => 'shipping_cost', 'label' => __('shipping.shipping_cost')],
+            ],
             'filters' => [
                 'search' => $search,
                 'status' => $statusFilter ?: null,
                 'from' => $from,
                 'to' => $to,
+                'sort' => in_array($request->string('sort')->toString(), $this->sortable, true) ? $request->string('sort')->toString() : null,
+                'direction' => strtolower((string) $request->string('direction')) === 'asc' ? 'asc' : 'desc',
             ],
             'canManage' => Gate::allows('shipping.manage'),
         ]);

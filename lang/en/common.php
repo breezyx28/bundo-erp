@@ -34,4 +34,13 @@ return [
     'reset' => 'Reset',
     'view' => 'View',
     'none' => 'None',
+    'default' => 'Default',
+    'sort_by' => 'Sort by',
+    'sort_asc' => 'Ascending',
+    'sort_desc' => 'Descending',
+    'columns' => 'Columns',
+    'print' => 'Print',
+    'print_columns_hint' => 'Choose which columns to include in the printout.',
+    'date_from' => 'From date',
+    'date_to' => 'To date',
 ];

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\AppliesTableFilters;
 use App\Http\Controllers\Concerns\InteractsWithToast;
 use App\Http\Requests\CustomerRequest;
 use App\Models\Customer;
@@ -14,19 +15,24 @@ use Inertia\Response;
 
 class CustomerController extends Controller
 {
-    use InteractsWithToast;
+    use AppliesTableFilters, InteractsWithToast;
+
+    /** @var array<int, string> */
+    protected array $sortable = ['name', 'phone', 'type'];
 
     public function index(Request $request): Response
     {
         $search = (string) $request->string('search');
         $type = (string) $request->string('type');
 
+        $query = Customer::query()
+            ->with('branchBalances')
+            ->search($search)
+            ->when($type, fn ($q) => $q->where('type', $type));
+        $this->applySort($query, $request, $this->sortable, 'id', 'desc');
+
         return Inertia::render('Customers/Index', [
-            'customers' => Customer::query()
-                ->with('branchBalances')
-                ->search($search)
-                ->when($type, fn ($q) => $q->where('type', $type))
-                ->orderBy('name')
+            'customers' => $query
                 ->paginate(10)
                 ->withQueryString()
                 ->through(fn (Customer $customer) => [
@@ -46,7 +52,16 @@ class CustomerController extends Controller
                         'color' => str_replace('badge-', '', $badge['color']),
                     ])->all(),
                 ]),
-            'filters' => ['search' => $search, 'type' => $type],
+            'sortOptions' => [
+                ['value' => 'name', 'label' => __('fields.name')],
+                ['value' => 'phone', 'label' => __('fields.phone')],
+                ['value' => 'type', 'label' => __('fields.type')],
+            ],
+            'filters' => [
+                'search' => $search,
+                'type' => $type ?: null,
+                ...$this->tableFilterState($request, $this->sortable),
+            ],
             'canManage' => Gate::allows('customers.create'),
         ]);
     }

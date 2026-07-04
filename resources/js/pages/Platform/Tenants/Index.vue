@@ -1,12 +1,16 @@
 <script setup>
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import { Head, router, useForm } from '@inertiajs/vue3';
 import { route } from 'ziggy-js';
 import AppLayout from '@/layouts/AppLayout.vue';
 import DataTable from '@/components/DataTable.vue';
 import FormModal from '@/components/FormModal.vue';
+import TableToolbar from '@/components/TableToolbar.vue';
+import TablePrintModal from '@/components/TablePrintModal.vue';
+import StatusBadgeCell from '@/components/StatusBadgeCell.vue';
 import { useTrans } from '@/composables/useTrans';
-import { useTableFilters } from '@/composables/useTableFilters';
+import { useIndexTable } from '@/composables/useIndexTable';
+import { numericHeader, textHeader } from '@/utils/tableHeaders';
 
 const props = defineProps({
     tenants: { type: Object, required: true },
@@ -15,17 +19,32 @@ const props = defineProps({
 });
 
 const { t } = useTrans();
-const { filters } = useTableFilters('platform.tenants', {
+
+const headers = [
+    textHeader('name', t('fields.name')),
+    textHeader('domain', t('platform.domain')),
+    numericHeader('branches_count', t('nav.branches')),
+    numericHeader('users_count', t('nav.users')),
+    textHeader('is_active', t('common.status')),
+];
+
+const {
+    filters,
+    visibleHeaders,
+    columnOptions,
+    toggleColumn,
+    printOpen,
+} = useIndexTable('platform.tenants', headers, {
     search: props.filters.search ?? '',
 });
 
-const headers = [
-    { key: 'name', label: t('fields.name') },
-    { key: 'domain', label: t('platform.domain') },
-    { key: 'branches_count', label: t('nav.branches'), class: 'text-end' },
-    { key: 'users_count', label: t('nav.users'), class: 'text-end' },
-    { key: 'is_active', label: t('common.status') },
-];
+const printRows = computed(() =>
+    (props.tenants.data ?? []).map((row) => ({
+        ...row,
+        domain: row.domain || '—',
+        is_active: row.is_active ? t('common.active') : t('common.inactive'),
+    })),
+);
 
 const localeItems = [
     { label: 'العربية', value: 'ar' },
@@ -138,13 +157,14 @@ function toggleActive(id) {
             </div>
 
             <UCard>
-                <DataTable :headers="headers" :rows="tenants" :query="filters" striped actions>
+                <DataTable :headers="visibleHeaders" :rows="tenants" :query="filters" striped actions>
                     <template #toolbar>
-                        <UInput
-                            v-model="filters.search"
-                            icon="i-heroicons-magnifying-glass"
-                            :placeholder="t('common.search')"
-                            class="w-full sm:max-w-xs"
+                        <TableToolbar
+                            :filters="filters"
+                            :column-options="columnOptions"
+                            :date-range="false"
+                            @toggle-column="toggleColumn"
+                            @print="printOpen = true"
                         />
                     </template>
 
@@ -153,10 +173,10 @@ function toggleActive(id) {
                     </template>
 
                     <template #cell-is_active="{ row }">
-                        <UBadge
-                            :color="row.is_active ? 'success' : 'neutral'"
-                            variant="subtle"
-                            :label="row.is_active ? t('common.active') : t('common.inactive')"
+                        <StatusBadgeCell
+                            :active="row.is_active"
+                            :active-label="t('common.active')"
+                            :inactive-label="t('common.inactive')"
                         />
                     </template>
 
@@ -255,5 +275,12 @@ function toggleActive(id) {
                 <UButton :label="t('common.save')" :loading="form.processing" @click="submit()" />
             </template>
         </FormModal>
+
+        <TablePrintModal
+            v-model:open="printOpen"
+            :title="t('platform.tenants')"
+            :headers="visibleHeaders"
+            :rows="printRows"
+        />
     </AppLayout>
 </template>

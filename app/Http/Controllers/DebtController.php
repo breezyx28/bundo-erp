@@ -6,6 +6,7 @@ use App\Http\Controllers\Concerns\InteractsWithToast;
 use App\Models\Customer;
 use App\Models\SalesInvoice;
 use App\Services\Collections\CollectionsService;
+use App\Services\Purchasing\PayablesService;
 use App\Support\Money;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -18,12 +19,13 @@ class DebtController extends Controller
 {
     use InteractsWithToast;
 
-    public function index(Request $request, CollectionsService $collections): Response
+    public function index(Request $request, CollectionsService $collections, PayablesService $payables): Response
     {
         $search = (string) $request->string('search');
         $onlyOverdue = $request->boolean('overdue');
         $perfFrom = (string) ($request->string('perf_from') ?: now()->startOfMonth()->toDateString());
         $perfTo = (string) ($request->string('perf_to') ?: now()->toDateString());
+        $supplierSearch = (string) $request->string('supplier_search');
 
         $aging = collect($collections->aging());
 
@@ -52,6 +54,28 @@ class DebtController extends Controller
         $summary = $collections->summary();
         $performance = $collections->performance($perfFrom, $perfTo);
 
+        $payableRows = collect($payables->aging());
+
+        if ($supplierSearch !== '') {
+            $payableRows = $payableRows->filter(
+                fn ($r) => str_contains(mb_strtolower($r['supplier']), mb_strtolower($supplierSearch)),
+            );
+        }
+
+        $supplierPage = $request->integer('spage', 1) ?: 1;
+        $payableItems = $payableRows->forPage($supplierPage, $perPage = 10)->values()->map(fn ($r) => [
+            'supplier' => $r['supplier'],
+            'supplier_id' => $r['supplier_id'],
+            'oldest_days' => $r['oldest_days'],
+            'current' => Money::format($r['current']),
+            'd30' => Money::format($r['d30']),
+            'd60' => Money::format($r['d60']),
+            'd90' => Money::format($r['d90']),
+            'total' => Money::format($r['total']),
+        ]);
+
+        $payablesSummary = $payables->summary();
+
         return Inertia::render('Debts/Index', [
             'summary' => [
                 'total' => Money::format($summary['total']),
@@ -76,6 +100,20 @@ class DebtController extends Controller
                     'total' => Money::format($b['total']),
                 ])->all(),
             ],
+            'payablesSummary' => [
+                'total' => Money::format($payablesSummary['total']),
+                'current' => Money::format($payablesSummary['current']),
+                'd30' => Money::format($payablesSummary['d30']),
+                'd60' => Money::format($payablesSummary['d60']),
+                'd90' => Money::format($payablesSummary['d90']),
+            ],
+            'payables' => new LengthAwarePaginator(
+                $payableItems,
+                $payableRows->count(),
+                $perPage,
+                $supplierPage,
+                ['path' => $request->url(), 'pageName' => 'spage'],
+            ),
             'methodOptions' => collect(['cash', 'bank_transfer', 'check', 'mobile_money'])
                 ->map(fn ($m) => ['value' => $m, 'label' => __('purchasing.methods.'.$m)])->all(),
             'statement' => Inertia::optional(fn () => $this->statementData($request->integer('statement'), $collections)),
@@ -84,6 +122,7 @@ class DebtController extends Controller
                 'overdue' => $onlyOverdue,
                 'perf_from' => $perfFrom,
                 'perf_to' => $perfTo,
+                'supplier_search' => $supplierSearch,
             ],
             'canManage' => Gate::allows('debts.manage'),
         ]);

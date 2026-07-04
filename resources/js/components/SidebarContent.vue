@@ -51,6 +51,13 @@ defineProps({
                             :class="item.active ? 'text-primary' : 'opacity-70'"
                         />
                         <span class="grow truncate">{{ item.label }}</span>
+                        <UBadge
+                            v-if="item.badge?.count"
+                            :label="String(item.badge.count)"
+                            :color="item.badge.tone"
+                            size="sm"
+                            variant="solid"
+                        />
                     </Link>
                 </li>
             </ul>

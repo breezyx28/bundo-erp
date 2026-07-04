@@ -5,7 +5,11 @@ import { route } from 'ziggy-js';
 import AppLayout from '@/layouts/AppLayout.vue';
 import DataTable from '@/components/DataTable.vue';
 import ConfirmModal from '@/components/ConfirmModal.vue';
+import TableToolbar from '@/components/TableToolbar.vue';
+import TablePrintModal from '@/components/TablePrintModal.vue';
 import { useTrans } from '@/composables/useTrans';
+import { useTableColumns } from '@/composables/useTableColumns';
+import { numericHeader, textHeader } from '@/utils/tableHeaders';
 
 const props = defineProps({
     exportTypes: { type: Array, default: () => [] },
@@ -75,18 +79,41 @@ function fmtSize(bytes) {
     return b + ' B';
 }
 
-const importHeaders = computed(() => [
-    { key: 'type_label', label: t('datatools.dataset') },
-    { key: 'imported_rows', label: t('datatools.imported'), class: 'text-end' },
-    { key: 'failed_rows', label: t('datatools.failed'), class: 'text-end' },
-    { key: 'created_at', label: t('datatools.date') },
-]);
+const importHeaders = [
+    textHeader('type_label', t('datatools.dataset')),
+    numericHeader('imported_rows', t('datatools.imported')),
+    numericHeader('failed_rows', t('datatools.failed')),
+    textHeader('created_at', t('datatools.date')),
+];
 
-const backupHeaders = computed(() => [
-    { key: 'name', label: t('datatools.name') },
-    { key: 'size', label: t('datatools.size'), class: 'text-end' },
-    { key: 'date', label: t('datatools.date') },
-]);
+const backupHeaders = [
+    textHeader('name', t('datatools.name')),
+    numericHeader('size', t('datatools.size')),
+    textHeader('date', t('datatools.date')),
+];
+
+const {
+    visibleHeaders: importVisibleHeaders,
+    columnOptions: importColumnOptions,
+    toggle: toggleImportColumn,
+} = useTableColumns('datatools.imports', importHeaders);
+const {
+    visibleHeaders: backupVisibleHeaders,
+    columnOptions: backupColumnOptions,
+    toggle: toggleBackupColumn,
+} = useTableColumns('datatools.backups', backupHeaders);
+
+const importPrintOpen = ref(false);
+const backupPrintOpen = ref(false);
+const tableFilters = ref({ search: '' });
+
+const importPrintRows = computed(() => props.imports ?? []);
+const backupPrintRows = computed(() =>
+    (props.backups ?? []).map((row) => ({
+        ...row,
+        size: fmtSize(row.size),
+    })),
+);
 </script>
 
 <template>
@@ -143,12 +170,23 @@ const backupHeaders = computed(() => [
 
                 <UCard>
                     <template #header><span class="font-medium">{{ t('datatools.history') }}</span></template>
-                    <DataTable :headers="importHeaders" :rows="imports" actions>
+                    <DataTable :headers="importVisibleHeaders" :rows="imports" actions>
+                        <template #toolbar>
+                            <TableToolbar
+                                :filters="tableFilters"
+                                :column-options="importColumnOptions"
+                                :date-range="false"
+                                :search="false"
+                                @toggle-column="toggleImportColumn"
+                                @print="importPrintOpen = true"
+                            />
+                        </template>
+
                         <template #cell-imported_rows="{ row }">
-                            <span class="tabular-nums text-success">{{ row.imported_rows }}</span>
+                            <span class="text-success">{{ row.imported_rows }}</span>
                         </template>
                         <template #cell-failed_rows="{ row }">
-                            <span class="tabular-nums" :class="row.failed_rows > 0 ? 'text-error' : ''">{{ row.failed_rows }}</span>
+                            <span :class="row.failed_rows > 0 ? 'text-error' : ''">{{ row.failed_rows }}</span>
                         </template>
                         <template #actions="{ row }">
                             <UButton v-if="row.errors && row.errors.length" :label="t('datatools.view_errors')" color="error" variant="ghost" size="xs" @click="showErrors(row)" />
@@ -172,9 +210,20 @@ const backupHeaders = computed(() => [
                         </div>
                     </div>
                 </template>
-                <DataTable :headers="backupHeaders" :rows="backups" actions>
+                <DataTable :headers="backupVisibleHeaders" :rows="backups" actions>
+                    <template #toolbar>
+                        <TableToolbar
+                            :filters="tableFilters"
+                            :column-options="backupColumnOptions"
+                            :date-range="false"
+                            :search="false"
+                            @toggle-column="toggleBackupColumn"
+                            @print="backupPrintOpen = true"
+                        />
+                    </template>
+
                     <template #cell-name="{ row }"><span class="font-mono text-sm">{{ row.name }}</span></template>
-                    <template #cell-size="{ row }"><span class="tabular-nums">{{ fmtSize(row.size) }}</span></template>
+                    <template #cell-size="{ row }">{{ fmtSize(row.size) }}</template>
                     <template #actions="{ row }">
                         <UButton icon="i-heroicons-arrow-down-tray" color="neutral" variant="ghost" size="xs" :to="route('data-tools.backup.download', { name: row.name })" as="a" external />
                         <UButton icon="i-heroicons-trash" color="error" variant="ghost" size="xs" @click="confirmDelete(row.name)" />
@@ -201,6 +250,19 @@ const backupHeaders = computed(() => [
             :message="t('common.confirm_delete')"
             :confirm-label="t('common.delete')"
             @confirm="doDelete"
+        />
+
+        <TablePrintModal
+            v-model:open="importPrintOpen"
+            :title="t('datatools.history')"
+            :headers="importVisibleHeaders"
+            :rows="importPrintRows"
+        />
+        <TablePrintModal
+            v-model:open="backupPrintOpen"
+            :title="t('datatools.backups_title')"
+            :headers="backupVisibleHeaders"
+            :rows="backupPrintRows"
         />
     </AppLayout>
 </template>

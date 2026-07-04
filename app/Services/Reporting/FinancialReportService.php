@@ -54,7 +54,7 @@ class FinancialReportService
         $expensesTotal = 0.0;
 
         foreach ($breakdown as $expense) {
-            $name = $expense->category->name;
+            $name = $expense->category?->name ?? __('reports.uncategorized');
             $byCategory[$name] = ($byCategory[$name] ?? 0) + (float) $expense->amount;
             $expensesTotal += (float) $expense->amount;
         }

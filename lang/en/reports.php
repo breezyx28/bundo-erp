@@ -15,4 +15,6 @@ return [
     'cash_out_expenses' => 'Cash out (expenses)',
     'net_cash' => 'Net cash flow',
     'branch' => 'Branch',
+    'uncategorized' => 'Uncategorized',
+    'no_data' => 'No report data for the selected period.',
 ];

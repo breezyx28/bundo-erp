@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\AppliesTableFilters;
 use App\Http\Controllers\Concerns\InteractsWithToast;
 use App\Models\StockTransfer;
 use App\Services\Branch\BranchContext;
@@ -15,18 +16,23 @@ use Inertia\Response;
 
 class TransferController extends Controller
 {
-    use InteractsWithToast;
+    use AppliesTableFilters, InteractsWithToast;
+
+    /** @var array<int, string> */
+    protected array $sortable = ['number', 'status', 'created_at'];
 
     public function index(Request $request, BranchContext $context, FormSelectCatalog $catalog): Response
     {
         $statusFilter = (string) $request->string('status');
 
+        $query = StockTransfer::query()
+            ->visible()
+            ->when($statusFilter, fn ($q) => $q->where('status', $statusFilter))
+            ->with(['fromBranch:id,name', 'toBranch:id,name']);
+        $this->applySort($query, $request, $this->sortable, 'id', 'desc');
+
         return Inertia::render('Transfers/Index', [
-            'transfers' => StockTransfer::query()
-                ->visible()
-                ->when($statusFilter, fn ($q) => $q->where('status', $statusFilter))
-                ->with(['fromBranch:id,name', 'toBranch:id,name'])
-                ->latest('id')
+            'transfers' => $query
                 ->paginate(10)
                 ->withQueryString()
                 ->through(fn (StockTransfer $tr) => [
@@ -35,7 +41,7 @@ class TransferController extends Controller
                     'from' => $tr->fromBranch?->name,
                     'to' => $tr->toBranch?->name,
                     'status' => $tr->status,
-                    'created' => $tr->created_at?->format('Y-m-d'),
+                    'created_at' => $tr->created_at?->format('Y-m-d'),
                 ]),
             'branchOptions' => $context->allowedBranches()->map(fn ($b) => ['id' => $b->id, 'name' => $b->name])->values(),
             'defaultFromBranch' => $context->currentBranchId() ?? $context->allowedBranchIds()->first(),
@@ -43,8 +49,15 @@ class TransferController extends Controller
             'statusOptions' => collect(['requested', 'approved', 'dispatched', 'received', 'cancelled'])
                 ->map(fn ($s) => ['value' => $s, 'label' => __('inventory.status.'.$s)])->all(),
             'detail' => Inertia::optional(fn () => $this->detailData($request->integer('detail'))),
+            'sortOptions' => [
+                ['value' => 'number', 'label' => __('inventory.transfer_no')],
+                ['value' => 'status', 'label' => __('common.status')],
+                ['value' => 'created_at', 'label' => __('inventory.requested_at')],
+            ],
             'filters' => [
                 'status' => $statusFilter ?: null,
+                'sort' => in_array($request->string('sort')->toString(), $this->sortable, true) ? $request->string('sort')->toString() : null,
+                'direction' => strtolower((string) $request->string('direction')) === 'asc' ? 'asc' : 'desc',
             ],
             'canManage' => Gate::allows('inventory.transfer'),
         ]);

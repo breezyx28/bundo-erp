@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\AppliesTableFilters;
 use App\Http\Controllers\Concerns\InteractsWithToast;
 use App\Http\Requests\BrandRequest;
 use App\Models\Brand;
@@ -12,17 +13,22 @@ use Inertia\Response;
 
 class BrandController extends Controller
 {
-    use InteractsWithToast;
+    use AppliesTableFilters, InteractsWithToast;
+
+    /** @var array<int, string> */
+    protected array $sortable = ['name', 'products_count', 'is_active'];
 
     public function index(Request $request): Response
     {
         $search = (string) $request->string('search');
 
+        $query = Brand::query()
+            ->withCount('products')
+            ->when($search, fn ($q) => $q->where('name', 'like', "%{$search}%"));
+        $this->applySort($query, $request, $this->sortable, 'id', 'desc');
+
         return Inertia::render('Brands/Index', [
-            'brands' => Brand::query()
-                ->withCount('products')
-                ->when($search, fn ($q) => $q->where('name', 'like', "%{$search}%"))
-                ->orderBy('name')
+            'brands' => $query
                 ->paginate(10)
                 ->withQueryString()
                 ->through(fn (Brand $brand) => [
@@ -32,7 +38,14 @@ class BrandController extends Controller
                     'description' => $brand->description,
                     'is_active' => (bool) $brand->is_active,
                 ]),
-            'filters' => ['search' => $search],
+            'sortOptions' => [
+                ['value' => 'name', 'label' => __('fields.name')],
+                ['value' => 'products_count', 'label' => __('nav.products')],
+            ],
+            'filters' => [
+                'search' => $search,
+                ...$this->tableFilterState($request, $this->sortable),
+            ],
         ]);
     }
 

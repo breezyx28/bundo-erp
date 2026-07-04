@@ -3,6 +3,10 @@
 return [
     'name' => 'Name',
     'parent' => 'Parent',
+    'parent_category' => 'Parent category',
+    'parent_help' => 'Leave empty for a top-level category, or choose a root category to create a subcategory.',
+    'parent_must_be_root' => 'The parent must be a top-level category.',
+    'parent_has_children' => 'A category with subcategories cannot be assigned a parent.',
     'description' => 'Description',
     'code' => 'Code',
     'phone' => 'Phone',

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\AppliesTableFilters;
 use App\Http\Controllers\Concerns\InteractsWithToast;
 use App\Http\Requests\UserRequest;
 use App\Models\Branch;
@@ -17,19 +18,24 @@ use Spatie\Permission\Models\Role;
 
 class UserController extends Controller
 {
-    use InteractsWithToast;
+    use AppliesTableFilters, InteractsWithToast;
+
+    /** @var array<int, string> */
+    protected array $sortable = ['name', 'email', 'is_active'];
 
     public function index(Request $request): Response
     {
         $search = (string) $request->string('search');
 
+        $query = User::query()
+            ->with('roles:id,name')
+            ->when($search, fn ($q) => $q->where(fn ($qq) => $qq
+                ->where('name', 'like', "%{$search}%")
+                ->orWhere('email', 'like', "%{$search}%")));
+        $this->applySort($query, $request, $this->sortable, 'id', 'desc');
+
         return Inertia::render('Users/Index', [
-            'users' => User::query()
-                ->with('roles:id,name')
-                ->when($search, fn ($q) => $q->where(fn ($qq) => $qq
-                    ->where('name', 'like', "%{$search}%")
-                    ->orWhere('email', 'like', "%{$search}%")))
-                ->orderBy('name')
+            'users' => $query
                 ->paginate(10)
                 ->withQueryString()
                 ->through(fn (User $user) => [
@@ -43,7 +49,14 @@ class UserController extends Controller
                 ]),
             'branches' => Branch::query()->orderBy('name')->get(['id', 'name']),
             'roles' => Role::query()->whereNotIn('name', ['super_admin'])->orderBy('name')->pluck('name')->all(),
-            'filters' => ['search' => $search],
+            'sortOptions' => [
+                ['value' => 'name', 'label' => __('fields.name')],
+                ['value' => 'email', 'label' => __('auth.email')],
+            ],
+            'filters' => [
+                'search' => $search,
+                ...$this->tableFilterState($request, $this->sortable),
+            ],
         ]);
     }
 

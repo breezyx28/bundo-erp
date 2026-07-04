@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\AppliesTableFilters;
 use App\Http\Controllers\Concerns\InteractsWithToast;
 use App\Http\Requests\BranchRequest;
 use App\Models\Branch;
@@ -14,16 +15,21 @@ use Inertia\Response;
 
 class BranchController extends Controller
 {
-    use InteractsWithToast;
+    use AppliesTableFilters, InteractsWithToast;
+
+    /** @var array<int, string> */
+    protected array $sortable = ['name', 'code', 'phone', 'is_active'];
 
     public function index(Request $request): Response
     {
         $search = (string) $request->string('search');
 
+        $query = Branch::query()
+            ->when($search, fn ($q) => $q->where('name', 'like', "%{$search}%"));
+        $this->applySort($query, $request, $this->sortable, 'id', 'desc');
+
         return Inertia::render('Branches/Index', [
-            'branches' => Branch::query()
-                ->when($search, fn ($q) => $q->where('name', 'like', "%{$search}%"))
-                ->orderBy('name')
+            'branches' => $query
                 ->paginate(10)
                 ->withQueryString()
                 ->through(fn (Branch $branch) => [
@@ -37,7 +43,15 @@ class BranchController extends Controller
                     'secondary_color' => $branch->secondary_color,
                     'is_active' => (bool) $branch->is_active,
                 ]),
-            'filters' => ['search' => $search],
+            'sortOptions' => [
+                ['value' => 'name', 'label' => __('fields.name')],
+                ['value' => 'code', 'label' => __('branches.code')],
+                ['value' => 'phone', 'label' => __('branches.phone')],
+            ],
+            'filters' => [
+                'search' => $search,
+                ...$this->tableFilterState($request, $this->sortable),
+            ],
         ]);
     }
 

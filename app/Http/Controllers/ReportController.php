@@ -9,9 +9,12 @@ use Inertia\Response;
 
 class ReportController extends Controller
 {
+    /** @var list<string> */
+    protected const REPORT_TYPES = ['pnl', 'cashflow', 'branches'];
+
     public function index(Request $request, FinancialReportService $service): Response
     {
-        $type = (string) ($request->string('type') ?: 'pnl');
+        $type = $this->resolveReportType((string) ($request->string('type') ?: 'pnl'));
         $from = (string) ($request->string('from') ?: now()->startOfMonth()->toDateString());
         $to = (string) ($request->string('to') ?: now()->toDateString());
 
@@ -46,5 +49,10 @@ class ReportController extends Controller
         $config = config("money.currencies.{$code}", ['symbol' => $code, 'decimals' => 2]);
 
         return ['symbol' => $config['symbol'], 'decimals' => (int) $config['decimals']];
+    }
+
+    protected function resolveReportType(string $type): string
+    {
+        return in_array($type, self::REPORT_TYPES, true) ? $type : 'pnl';
     }
 }

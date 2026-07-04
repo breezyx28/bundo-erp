@@ -2,6 +2,10 @@
 
 return [
     'outstanding' => 'إجمالي المستحقات',
+    'receivables' => 'مستحقات العملاء',
+    'payables' => 'مستحقات الموردين',
+    'payables_total' => 'إجمالي المستحق للموردين',
+    'supplier_aging' => 'أعمار مستحقات الموردين',
     'aging' => 'أعمار الديون',
     'overdue_only' => 'المتأخرة فقط',
     'collect' => 'تحصيل',

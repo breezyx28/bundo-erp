@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\AppliesTableFilters;
 use App\Http\Controllers\Concerns\InteractsWithToast;
 use App\Http\Requests\PurchaseRequest;
 use App\Models\PurchaseOrder;
@@ -16,19 +17,25 @@ use Inertia\Response;
 
 class PurchaseController extends Controller
 {
-    use InteractsWithToast;
+    use AppliesTableFilters, InteractsWithToast;
+
+    /** @var array<int, string> */
+    protected array $sortable = ['po_number', 'order_date', 'total_amount', 'order_status', 'payment_status'];
 
     public function index(Request $request, FormSelectCatalog $catalog): Response
     {
         $search = (string) $request->string('search');
         $statusFilter = (string) $request->string('status');
 
+        $query = PurchaseOrder::query()
+            ->search($search)
+            ->status($statusFilter)
+            ->with(['supplier:id,name']);
+        $this->applyDateRange($query, $request, 'order_date');
+        $this->applySort($query, $request, $this->sortable, 'id', 'desc');
+
         return Inertia::render('Purchases/Index', [
-            'orders' => PurchaseOrder::query()
-                ->search($search)
-                ->status($statusFilter)
-                ->with(['supplier:id,name'])
-                ->latest('id')
+            'orders' => $query
                 ->paginate(10)
                 ->withQueryString()
                 ->through(fn (PurchaseOrder $o) => [
@@ -52,9 +59,15 @@ class PurchaseController extends Controller
             'editing' => Inertia::optional(fn () => $this->editData($request->integer('editing'))),
             'receiveDetail' => Inertia::optional(fn () => $this->receiveData($request->integer('receive'))),
             'detail' => Inertia::optional(fn () => $this->detailData($request->integer('detail'))),
+            'sortOptions' => [
+                ['value' => 'po_number', 'label' => __('purchasing.po_number')],
+                ['value' => 'order_date', 'label' => __('purchasing.order_date')],
+                ['value' => 'total_amount', 'label' => __('purchasing.total')],
+            ],
             'filters' => [
                 'search' => $search,
                 'status' => $statusFilter ?: null,
+                ...$this->tableFilterState($request, $this->sortable),
             ],
             'canCreate' => Gate::allows('purchases.create'),
             'canReceive' => Gate::allows('purchases.receive'),
@@ -71,6 +84,7 @@ class PurchaseController extends Controller
                 'supplier_id' => $data['supplier_id'],
                 'order_date' => $data['order_date'],
                 'expected_delivery_date' => $data['expected_delivery_date'] ?? null,
+                'payment_due_date' => $data['payment_due_date'] ?? null,
                 'notes' => $data['notes'] ?? null,
             ], $data['items'], null);
         } catch (\Throwable $e) {
@@ -99,6 +113,7 @@ class PurchaseController extends Controller
                 'supplier_id' => $data['supplier_id'],
                 'order_date' => $data['order_date'],
                 'expected_delivery_date' => $data['expected_delivery_date'] ?? null,
+                'payment_due_date' => $data['payment_due_date'] ?? null,
                 'notes' => $data['notes'] ?? null,
             ], $data['items'], $purchase);
         } catch (\Throwable $e) {
@@ -209,6 +224,7 @@ class PurchaseController extends Controller
             'supplier_id' => $order->supplier_id,
             'order_date' => $order->order_date?->toDateString(),
             'expected_delivery_date' => $order->expected_delivery_date?->toDateString(),
+            'payment_due_date' => $order->payment_due_date?->toDateString(),
             'notes' => (string) $order->notes,
             'items' => $order->items->map(fn ($i) => [
                 'product_id' => $i->product_id,

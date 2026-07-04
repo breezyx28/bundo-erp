@@ -17,10 +17,10 @@ class SalesInvoiceRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'customer_id' => 'nullable|integer|exists:customers,id',
+            'customer_id' => 'nullable|integer|exists:customers,id|required_if:sale_type,credit',
             'sale_type' => 'required|in:cash,credit',
             'invoice_date' => 'required|date',
-            'due_date' => 'nullable|date|after_or_equal:invoice_date',
+            'due_date' => 'nullable|date|after_or_equal:invoice_date|required_if:sale_type,credit',
             'payment_method' => 'required|in:cash,bank_transfer,check,mobile_money',
             'paid_amount' => 'nullable|numeric|min:0',
             'discount_type' => 'nullable|in:percentage,fixed',
@@ -31,6 +31,17 @@ class SalesInvoiceRequest extends FormRequest
             'items.*.product_id' => 'required|integer|exists:products,id',
             'items.*.quantity' => 'required|integer|min:1',
             'items.*.unit_price' => 'required|numeric|min:0',
+        ];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public function messages(): array
+    {
+        return [
+            'customer_id.required_if' => __('sales.credit_requires_customer'),
+            'due_date.required_if' => __('sales.credit_requires_due_date'),
         ];
     }
 }

@@ -1,12 +1,18 @@
 <script setup>
+import { computed, ref } from 'vue';
 import { Head, useForm } from '@inertiajs/vue3';
 import AppLayout from '@/layouts/AppLayout.vue';
 import DataTable from '@/components/DataTable.vue';
 import FormModal from '@/components/FormModal.vue';
 import ConfirmModal from '@/components/ConfirmModal.vue';
+import TableToolbar from '@/components/TableToolbar.vue';
+import TablePrintModal from '@/components/TablePrintModal.vue';
+import StatusBadgeCell from '@/components/StatusBadgeCell.vue';
+import TableRowActions from '@/components/TableRowActions.vue';
 import { useTrans } from '@/composables/useTrans';
-import { useTableFilters } from '@/composables/useTableFilters';
+import { useIndexTable } from '@/composables/useIndexTable';
 import { useResourceForm } from '@/composables/useResourceForm';
+import { numericHeader, textHeader } from '@/utils/tableHeaders';
 
 const props = defineProps({
     companies: { type: Object, required: true },
@@ -15,17 +21,31 @@ const props = defineProps({
 });
 
 const { t } = useTrans();
-const { filters } = useTableFilters('logistics.index', {
+
+const headers = [
+    textHeader('name', t('fields.name')),
+    textHeader('contact_person', t('shipping.contact_person')),
+    textHeader('rating', t('shipping.rating')),
+    numericHeader('shipments_count', t('nav.shipping')),
+    textHeader('is_active', t('common.status')),
+];
+
+const {
+    filters,
+    visibleHeaders,
+    columnOptions,
+    toggleColumn,
+    printOpen,
+} = useIndexTable('logistics.index', headers, {
     search: props.filters.search ?? '',
 });
 
-const headers = [
-    { key: 'name', label: t('fields.name') },
-    { key: 'contact_person', label: t('shipping.contact_person') },
-    { key: 'rating', label: t('shipping.rating') },
-    { key: 'shipments_count', label: t('nav.shipping'), class: 'text-end' },
-    { key: 'is_active', label: t('common.status') },
-];
+const printRows = computed(() =>
+    (props.companies.data ?? []).map((row) => ({
+        ...row,
+        is_active: row.is_active ? t('common.active') : t('common.inactive'),
+    })),
+);
 
 const form = useForm({
     name: '',
@@ -65,13 +85,14 @@ const {
             </div>
 
             <UCard>
-                <DataTable :headers="headers" :rows="companies" :query="filters" :actions="canManage">
+                <DataTable :headers="visibleHeaders" :rows="companies" :query="filters" :actions="canManage">
                     <template #toolbar>
-                        <UInput
-                            v-model="filters.search"
-                            icon="i-heroicons-magnifying-glass"
-                            :placeholder="t('common.search')"
-                            class="w-full sm:max-w-xs"
+                        <TableToolbar
+                            :filters="filters"
+                            :column-options="columnOptions"
+                            :date-range="false"
+                            @toggle-column="toggleColumn"
+                            @print="printOpen = true"
                         />
                     </template>
 
@@ -87,19 +108,18 @@ const {
                         </div>
                     </template>
                     <template #cell-shipments_count="{ value }">
-                        <span class="tabular-nums text-muted">{{ value.toLocaleString() }}</span>
+                        <span class="text-muted">{{ value.toLocaleString() }}</span>
                     </template>
                     <template #cell-is_active="{ row }">
-                        <UBadge
-                            :color="row.is_active ? 'success' : 'neutral'"
-                            variant="subtle"
-                            :label="row.is_active ? t('common.active') : t('common.inactive')"
+                        <StatusBadgeCell
+                            :active="row.is_active"
+                            :active-label="t('common.active')"
+                            :inactive-label="t('common.inactive')"
                         />
                     </template>
 
                     <template #actions="{ row }">
-                        <UButton icon="i-heroicons-pencil-square" color="neutral" variant="ghost" size="sm" @click="openEdit(row)" />
-                        <UButton icon="i-heroicons-trash" color="error" variant="ghost" size="sm" @click="askDelete(row.id)" />
+                        <TableRowActions @edit="openEdit(row)" @delete="askDelete(row.id)" />
                     </template>
                 </DataTable>
             </UCard>
@@ -141,5 +161,12 @@ const {
         </FormModal>
 
         <ConfirmModal v-model:open="deleteOpen" :loading="deleting" @confirm="destroy()" />
+
+        <TablePrintModal
+            v-model:open="printOpen"
+            :title="t('nav.logistics')"
+            :headers="visibleHeaders"
+            :rows="printRows"
+        />
     </AppLayout>
 </template>

@@ -169,6 +169,117 @@ class SalesInvoiceTest extends TestCase
         $this->assertSame('application/pdf', $pdf->headers->get('content-type'));
     }
 
+    public function test_credit_sale_to_registered_customer_appears_in_sales_index(): void
+    {
+        $customer = Customer::create(['tenant_id' => $this->tenant->id, 'name' => 'Khalid', 'is_active' => true]);
+        $product = $this->stockedProduct(20, 500, 1000);
+
+        $this->post(route('sales.store'), [
+            'customer_id' => $customer->id,
+            'sale_type' => SalesInvoice::TYPE_CREDIT,
+            'invoice_date' => now()->toDateString(),
+            'due_date' => now()->addDays(20)->toDateString(),
+            'payment_method' => 'cash',
+            'paid_amount' => 0,
+            'exchange_rate' => 600,
+            'items' => [
+                ['product_id' => $product->id, 'quantity' => 3, 'unit_price' => 1000],
+            ],
+        ])->assertRedirect(route('sales.index'));
+
+        $invoice = SalesInvoice::where('customer_id', $customer->id)->firstOrFail();
+
+        // Unfiltered index shows the credit invoice with its customer name.
+        $this->get(route('sales.index'))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('invoices.data.0.customer', 'Khalid')
+                ->where('invoices.data.0.invoice_number', $invoice->invoice_number)
+                ->where('invoices.data.0.payment_status', SalesInvoice::PAY_UNPAID));
+
+        // Searching by the customer name combined with an unpaid status filter still finds it.
+        $this->get(route('sales.index', ['search' => 'Khalid', 'status' => 'unpaid']))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page->where('invoices.data.0.customer', 'Khalid'));
+    }
+
+    public function test_credit_sale_appears_in_debts_aging(): void
+    {
+        $customer = Customer::create(['tenant_id' => $this->tenant->id, 'name' => 'Nadia', 'is_active' => true]);
+        $product = $this->stockedProduct(10, 500, 2000);
+
+        $this->sales->createInvoice([
+            'customer_id' => $customer->id,
+            'invoice_date' => now()->toDateString(),
+            'due_date' => now()->addDays(14)->toDateString(),
+            'sale_type' => SalesInvoice::TYPE_CREDIT,
+            'payment_method' => 'cash',
+            'paid_amount' => 0,
+        ], [
+            ['product_id' => $product->id, 'quantity' => 2, 'unit_price' => 2000],
+        ]);
+
+        $this->get(route('debts.index'))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('aging.data.0.customer', 'Nadia')
+                ->where('aging.data.0.total', fn ($total) => str_contains((string) $total, '4')));
+    }
+
+    public function test_sales_index_sorts_and_filters_by_date(): void
+    {
+        $product = $this->stockedProduct(20, 500, 1000);
+
+        $older = $this->sales->createInvoice([
+            'invoice_date' => '2026-01-10',
+            'sale_type' => SalesInvoice::TYPE_CASH,
+            'payment_method' => 'cash',
+        ], [
+            ['product_id' => $product->id, 'quantity' => 1, 'unit_price' => 1000],
+        ]);
+
+        $newer = $this->sales->createInvoice([
+            'invoice_date' => '2026-06-15',
+            'sale_type' => SalesInvoice::TYPE_CASH,
+            'payment_method' => 'cash',
+        ], [
+            ['product_id' => $product->id, 'quantity' => 1, 'unit_price' => 1000],
+        ]);
+
+        $this->get(route('sales.index', [
+            'sort' => 'invoice_date',
+            'direction' => 'asc',
+        ]))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('invoices.data.0.invoice_number', $older->invoice_number)
+                ->where('invoices.data.1.invoice_number', $newer->invoice_number));
+
+        $this->get(route('sales.index', [
+            'date_from' => '2026-06-01',
+            'date_to' => '2026-06-30',
+        ]))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->has('invoices.data', 1)
+                ->where('invoices.data.0.invoice_number', $newer->invoice_number));
+    }
+
+    public function test_credit_sale_without_customer_is_rejected(): void
+    {
+        $product = $this->stockedProduct(10, 500, 1000);
+
+        $this->post(route('sales.store'), [
+            'sale_type' => SalesInvoice::TYPE_CREDIT,
+            'invoice_date' => now()->toDateString(),
+            'due_date' => now()->addDays(10)->toDateString(),
+            'payment_method' => 'cash',
+            'items' => [
+                ['product_id' => $product->id, 'quantity' => 1, 'unit_price' => 1000],
+            ],
+        ])->assertSessionHasErrors(['customer_id']);
+    }
+
     public function test_void_restores_stock_and_reverses_receivable(): void
     {
         $customer = Customer::create(['tenant_id' => $this->tenant->id, 'name' => 'Sara', 'is_active' => true]);

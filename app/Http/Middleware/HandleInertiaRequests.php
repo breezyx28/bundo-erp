@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use App\Services\Branch\BranchContext;
+use App\Services\Navigation\NavBadgeService;
 use App\Services\Tenancy\TenantContext;
 use App\Support\Navigation;
 use App\Support\TenantBranding;
@@ -158,8 +159,12 @@ class HandleInertiaRequests extends Middleware
     protected function navigation(): array
     {
         $current = request()->route()?->getName();
+        $user = Auth::user();
+        $badges = $user && ! app(TenantContext::class)->isPlatformMode()
+            ? app(NavBadgeService::class)->badges($user)
+            : [];
 
-        return app(Navigation::class)->menu()->map(function (array $item) use ($current) {
+        return app(Navigation::class)->menu()->map(function (array $item) use ($current, $badges) {
             $routeName = $item['route'] ?? null;
 
             return [
@@ -168,6 +173,7 @@ class HandleInertiaRequests extends Middleware
                 'route' => $routeName,
                 'href' => $routeName && Route::has($routeName) ? route($routeName) : null,
                 'active' => $routeName !== null && $current === $routeName,
+                'badge' => $routeName !== null ? ($badges[$routeName] ?? null) : null,
             ];
         })->all();
     }

@@ -5,27 +5,50 @@ import AppLayout from '@/layouts/AppLayout.vue';
 import DataTable from '@/components/DataTable.vue';
 import FormModal from '@/components/FormModal.vue';
 import ConfirmModal from '@/components/ConfirmModal.vue';
+import TableToolbar from '@/components/TableToolbar.vue';
+import TablePrintModal from '@/components/TablePrintModal.vue';
+import StatusBadgeCell from '@/components/StatusBadgeCell.vue';
+import TableRowActions from '@/components/TableRowActions.vue';
 import { useTrans } from '@/composables/useTrans';
-import { useTableFilters } from '@/composables/useTableFilters';
+import { useIndexTable } from '@/composables/useIndexTable';
 import { useResourceForm } from '@/composables/useResourceForm';
+import { numericHeader, textHeader } from '@/utils/tableHeaders';
 
 const props = defineProps({
     categories: { type: Object, required: true },
     parents: { type: Array, default: () => [] },
     filters: { type: Object, default: () => ({ search: '' }) },
+    sortOptions: { type: Array, default: () => [] },
 });
 
 const { t } = useTrans();
-const { filters } = useTableFilters('categories.index', {
-    search: props.filters.search ?? '',
-});
 
 const headers = [
-    { key: 'name', label: t('fields.name') },
-    { key: 'parent', label: t('fields.parent') },
-    { key: 'products_count', label: t('nav.products') },
-    { key: 'is_active', label: t('common.status') },
+    textHeader('name', t('fields.name'), true),
+    textHeader('parent', t('fields.parent_category')),
+    numericHeader('products_count', t('nav.products'), true),
+    textHeader('is_active', t('common.status'), true),
 ];
+
+const {
+    filters,
+    toggleSort,
+    visibleHeaders,
+    columnOptions,
+    toggleColumn,
+    printOpen,
+} = useIndexTable('categories.index', headers, {
+    search: props.filters.search ?? '',
+    sort: props.filters.sort ?? '',
+    direction: props.filters.direction ?? 'desc',
+});
+const printRows = computed(() =>
+    (props.categories.data ?? []).map((row) => ({
+        ...row,
+        parent: row.parent || '—',
+        is_active: row.is_active ? t('common.active') : t('common.inactive'),
+    })),
+);
 
 const form = useForm({
     name: '',
@@ -74,43 +97,56 @@ const parentItems = computed(() => [
             </div>
 
             <UCard>
-                <DataTable :headers="headers" :rows="categories" :query="filters" striped actions>
+                <DataTable
+                    :headers="visibleHeaders"
+                    :rows="categories"
+                    :query="filters"
+                    :sort="filters.sort"
+                    :direction="filters.direction"
+                    striped
+                    actions
+                    @sort="toggleSort"
+                >
                     <template #toolbar>
-                        <UInput
-                            v-model="filters.search"
-                            icon="i-heroicons-magnifying-glass"
-                            :placeholder="t('common.search')"
-                            class="w-full sm:max-w-xs"
+                        <TableToolbar
+                            :filters="filters"
+                            :sort-options="sortOptions"
+                            :column-options="columnOptions"
+                            :date-range="false"
+                            @toggle-column="toggleColumn"
+                            @print="printOpen = true"
                         />
                     </template>
 
-                    <template #cell-parent="{ value }">
-                        {{ value || '—' }}
+                    <template #cell-name="{ row }">
+                        <span
+                            class="inline-flex items-center gap-1.5"
+                            :class="row.parent_id ? 'ps-3 text-muted' : 'font-medium text-highlighted'"
+                        >
+                            <UIcon
+                                v-if="row.parent_id"
+                                name="i-heroicons-arrow-turn-down-right"
+                                class="size-4 shrink-0 opacity-60"
+                            />
+                            {{ row.name }}
+                        </span>
+                    </template>
+
+                    <template #cell-parent="{ row }">
+                        <span v-if="row.parent" class="text-muted">{{ row.parent }}</span>
+                        <span v-else class="text-dimmed italic">—</span>
                     </template>
 
                     <template #cell-is_active="{ row }">
-                        <UBadge
-                            :color="row.is_active ? 'success' : 'neutral'"
-                            variant="subtle"
-                            :label="row.is_active ? t('common.active') : t('common.inactive')"
+                        <StatusBadgeCell
+                            :active="row.is_active"
+                            :active-label="t('common.active')"
+                            :inactive-label="t('common.inactive')"
                         />
                     </template>
 
                     <template #actions="{ row }">
-                        <UButton
-                            icon="i-heroicons-pencil-square"
-                            color="neutral"
-                            variant="ghost"
-                            size="sm"
-                            @click="openEdit(row)"
-                        />
-                        <UButton
-                            icon="i-heroicons-trash"
-                            color="error"
-                            variant="ghost"
-                            size="sm"
-                            @click="askDelete(row.id)"
-                        />
+                        <TableRowActions @edit="openEdit(row)" @delete="askDelete(row.id)" />
                     </template>
                 </DataTable>
             </UCard>
@@ -124,7 +160,11 @@ const parentItems = computed(() => [
                 <UFormField :label="t('fields.name')" :error="form.errors.name">
                     <UInput v-model="form.name" class="w-full" />
                 </UFormField>
-                <UFormField :label="t('fields.parent')" :error="form.errors.parent_id">
+                <UFormField
+                    :label="t('fields.parent_category')"
+                    :description="t('fields.parent_help')"
+                    :error="form.errors.parent_id"
+                >
                     <USelectMenu
                         v-model="form.parent_id"
                         :items="parentItems"
@@ -148,6 +188,13 @@ const parentItems = computed(() => [
             v-model:open="deleteOpen"
             :loading="deleting"
             @confirm="destroy()"
+        />
+
+        <TablePrintModal
+            v-model:open="printOpen"
+            :title="t('nav.categories')"
+            :headers="visibleHeaders"
+            :rows="printRows"
         />
     </AppLayout>
 </template>

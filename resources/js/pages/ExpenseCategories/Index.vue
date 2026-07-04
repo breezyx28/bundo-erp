@@ -1,30 +1,47 @@
 <script setup>
+import { computed, ref } from 'vue';
 import { Head, useForm } from '@inertiajs/vue3';
 import AppLayout from '@/layouts/AppLayout.vue';
 import DataTable from '@/components/DataTable.vue';
 import FormModal from '@/components/FormModal.vue';
 import ConfirmModal from '@/components/ConfirmModal.vue';
+import TableToolbar from '@/components/TableToolbar.vue';
+import TablePrintModal from '@/components/TablePrintModal.vue';
 import { useTrans } from '@/composables/useTrans';
 import { useTableFilters } from '@/composables/useTableFilters';
+import { useTableColumns } from '@/composables/useTableColumns';
 import { useResourceForm } from '@/composables/useResourceForm';
 
 const props = defineProps({
     categories: { type: Object, required: true },
     filters: { type: Object, default: () => ({ search: '' }) },
+    sortOptions: { type: Array, default: () => [] },
     canManage: { type: Boolean, default: false },
 });
 
 const { t } = useTrans();
-const { filters } = useTableFilters('expense-categories.index', {
+const { filters, toggleSort } = useTableFilters('expense-categories.index', {
     search: props.filters.search ?? '',
+    sort: props.filters.sort ?? '',
+    direction: props.filters.direction ?? 'desc',
 });
 
 const headers = [
-    { key: 'name', label: t('fields.name') },
-    { key: 'is_operational', label: t('expenses.operational') },
-    { key: 'expenses_count', label: t('nav.expenses'), class: 'text-end' },
-    { key: 'is_active', label: t('common.status') },
+    { key: 'name', label: t('fields.name'), sortable: true },
+    { key: 'is_operational', label: t('expenses.operational'), sortable: true },
+    { key: 'expenses_count', label: t('nav.expenses'), align: 'end', sortable: true },
+    { key: 'is_active', label: t('common.status'), sortable: true },
 ];
+
+const { visibleHeaders, columnOptions, toggle: toggleColumn } = useTableColumns('expense-categories.index', headers);
+const printOpen = ref(false);
+const printRows = computed(() =>
+    (props.categories.data ?? []).map((row) => ({
+        ...row,
+        is_operational: row.is_operational ? t('expenses.operational') : t('expenses.non_operational'),
+        is_active: row.is_active ? t('common.active') : t('common.inactive'),
+    })),
+);
 
 const form = useForm({
     name: '',
@@ -64,13 +81,24 @@ const {
             </div>
 
             <UCard>
-                <DataTable :headers="headers" :rows="categories" :query="filters" striped :actions="canManage">
+                <DataTable
+                    :headers="visibleHeaders"
+                    :rows="categories"
+                    :query="filters"
+                    :sort="filters.sort"
+                    :direction="filters.direction"
+                    striped
+                    :actions="canManage"
+                    @sort="toggleSort"
+                >
                     <template #toolbar>
-                        <UInput
-                            v-model="filters.search"
-                            icon="i-heroicons-magnifying-glass"
-                            :placeholder="t('common.search')"
-                            class="w-full sm:max-w-xs"
+                        <TableToolbar
+                            :filters="filters"
+                            :sort-options="sortOptions"
+                            :column-options="columnOptions"
+                            :date-range="false"
+                            @toggle-column="toggleColumn"
+                            @print="printOpen = true"
                         />
                     </template>
 
@@ -125,5 +153,12 @@ const {
         </FormModal>
 
         <ConfirmModal v-model:open="deleteOpen" :loading="deleting" @confirm="destroy()" />
+
+        <TablePrintModal
+            v-model:open="printOpen"
+            :title="t('nav.expense_categories')"
+            :headers="visibleHeaders"
+            :rows="printRows"
+        />
     </AppLayout>
 </template>

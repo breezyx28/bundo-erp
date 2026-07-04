@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\AppliesTableFilters;
 use App\Http\Controllers\Concerns\InteractsWithToast;
 use App\Http\Requests\ExpenseRequest;
 use App\Models\Expense;
@@ -21,7 +22,10 @@ use Inertia\Response;
 
 class ExpenseController extends Controller
 {
-    use InteractsWithToast;
+    use AppliesTableFilters, InteractsWithToast;
+
+    /** @var array<int, string> */
+    protected array $sortable = ['expense_date', 'amount'];
 
     public function index(Request $request, ExpenseService $service, FormSelectCatalog $catalog): Response
     {
@@ -32,13 +36,15 @@ class ExpenseController extends Controller
 
         $report = $service->report($from, $to);
 
+        $query = Expense::query()
+            ->search($search)
+            ->when($categoryFilter, fn ($q) => $q->where('expense_category_id', $categoryFilter))
+            ->whereBetween('expense_date', DateRange::bounds($from, $to))
+            ->with(['category:id,name']);
+        $this->applySort($query, $request, $this->sortable, 'expense_date', 'desc');
+
         return Inertia::render('Expenses/Index', [
-            'expenses' => Expense::query()
-                ->search($search)
-                ->when($categoryFilter, fn ($q) => $q->where('expense_category_id', $categoryFilter))
-                ->whereBetween('expense_date', DateRange::bounds($from, $to))
-                ->with(['category:id,name'])
-                ->latest('expense_date')->latest('id')
+            'expenses' => $query
                 ->paginate(10)
                 ->withQueryString()
                 ->through(fn (Expense $expense) => [
@@ -69,11 +75,17 @@ class ExpenseController extends Controller
             'methodOptions' => collect(['cash', 'bank_transfer', 'check'])
                 ->map(fn ($m) => ['value' => $m, 'label' => __('purchasing.methods.'.$m)])->all(),
             'poOptions' => $catalog->purchaseOrders(),
+            'sortOptions' => [
+                ['value' => 'expense_date', 'label' => __('sales.date')],
+                ['value' => 'amount', 'label' => __('purchasing.amount')],
+            ],
             'filters' => [
                 'search' => $search,
                 'category' => $categoryFilter ?: null,
                 'from' => $from,
                 'to' => $to,
+                'sort' => in_array($request->string('sort')->toString(), $this->sortable, true) ? $request->string('sort')->toString() : null,
+                'direction' => strtolower((string) $request->string('direction')) === 'asc' ? 'asc' : 'desc',
             ],
             'canManage' => Gate::allows('expenses.create'),
         ]);

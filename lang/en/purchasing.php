@@ -6,6 +6,8 @@ return [
     'edit_po' => 'Edit purchase order',
     'order_date' => 'Order date',
     'expected_delivery' => 'Expected delivery',
+    'payment_due' => 'Payment due',
+    'payment_due_hint' => 'Leave empty to pay on delivery.',
     'order_status' => 'Order status',
     'payment_status' => 'Payment status',
     'total' => 'Total',

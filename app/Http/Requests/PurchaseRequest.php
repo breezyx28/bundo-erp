@@ -22,6 +22,7 @@ class PurchaseRequest extends FormRequest
             'supplier_id' => 'required|integer|exists:suppliers,id',
             'order_date' => 'required|date',
             'expected_delivery_date' => 'nullable|date|after_or_equal:order_date',
+            'payment_due_date' => 'nullable|date|after_or_equal:order_date',
             'notes' => 'nullable|string|max:1000',
             'items' => 'required|array|min:1',
             'items.*.product_id' => 'required|integer|exists:products,id',

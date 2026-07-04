@@ -33,13 +33,14 @@ class PurchaseOrder extends Model
 
     protected $fillable = [
         'tenant_id', 'branch_id', 'supplier_id', 'po_number', 'order_date',
-        'expected_delivery_date', 'total_amount', 'total_amount_usd', 'paid_amount',
+        'expected_delivery_date', 'payment_due_date', 'total_amount', 'total_amount_usd', 'paid_amount',
         'payment_status', 'order_status', 'notes', 'created_by',
     ];
 
     protected $casts = [
         'order_date' => 'date',
         'expected_delivery_date' => 'date',
+        'payment_due_date' => 'date',
         'total_amount' => 'decimal:2',
         'total_amount_usd' => 'decimal:2',
         'paid_amount' => 'decimal:2',
@@ -80,6 +81,36 @@ class PurchaseOrder extends Model
         return round((float) $this->total_amount - (float) $this->paid_amount, 2);
     }
 
+    /** Purchase orders that still owe the supplier money (excluding cancelled). */
+    public function scopeOutstandingPayables(Builder $query): Builder
+    {
+        return $query->whereColumn('paid_amount', '<', 'total_amount')
+            ->where('order_status', '!=', self::STATUS_CANCELLED);
+    }
+
+    /** Whole days past the payment due date; 0 if not yet due or no due date. */
+    public function paymentDaysOverdue(): int
+    {
+        if (! $this->payment_due_date) {
+            return 0;
+        }
+
+        return max(0, (int) $this->payment_due_date->startOfDay()->diffInDays(now()->startOfDay(), false));
+    }
+
+    /** Aging bucket key for supplier payables: current | d30 | d60 | d90. */
+    public function paymentAgingBucket(): string
+    {
+        $days = $this->paymentDaysOverdue();
+
+        return match (true) {
+            $days <= 30 => 'current',
+            $days <= 60 => 'd30',
+            $days <= 90 => 'd60',
+            default => 'd90',
+        };
+    }
+
     public function isEditable(): bool
     {
         return in_array($this->order_status, [self::STATUS_DRAFT, self::STATUS_ORDERED], true);
@@ -101,7 +132,9 @@ class PurchaseOrder extends Model
             return $query;
         }
 
-        return $query->where('po_number', 'like', "%{$term}%")
-            ->orWhereHas('supplier', fn (Builder $q) => $q->where('name', 'like', "%{$term}%"));
+        return $query->where(function (Builder $q) use ($term) {
+            $q->where('po_number', 'like', "%{$term}%")
+                ->orWhereHas('supplier', fn (Builder $s) => $s->where('name', 'like', "%{$term}%"));
+        });
     }
 }
