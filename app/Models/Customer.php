@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Models\Concerns\BelongsToTenant;
 use App\Models\Concerns\HasCustomFields;
 use App\Services\Branch\BranchContext;
+use App\Support\FormSelectCatalog;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -27,6 +28,12 @@ class Customer extends Model
         'opening_balance' => 'decimal:2',
         'is_active' => 'boolean',
     ];
+
+    protected static function booted(): void
+    {
+        static::saved(fn () => app(FormSelectCatalog::class)->flush('customers'));
+        static::deleted(fn () => app(FormSelectCatalog::class)->flush('customers'));
+    }
 
     public function getActivitylogOptions(): LogOptions
     {

@@ -145,12 +145,22 @@ class FormSelectCatalog
     public function flush(?string $scope = null): void
     {
         $tenantId = $this->branch->currentTenantId() ?? 0;
-        $pattern = $scope
-            ? "form-select:{$tenantId}:{$scope}*"
-            : "form-select:{$tenantId}:*";
 
-        // Cache flush by pattern is driver-dependent; forget known keys for sqlite/file.
-        foreach (['products:0', 'products:1', 'customers', 'suppliers', 'categories', 'shipment-invoices', 'purchase-orders'] as $suffix) {
+        $suffixes = match ($scope) {
+            'customers' => ['customers'],
+            'suppliers' => ['suppliers'],
+            'categories' => ['categories'],
+            'brands' => ['brands'],
+            'products' => ['products:0', 'products:1'],
+            'purchase-orders' => ['purchase-orders'],
+            'shipment-invoices' => ['shipment-invoices'],
+            default => [
+                'products:0', 'products:1', 'customers', 'suppliers', 'categories',
+                'brands', 'shipment-invoices', 'purchase-orders',
+            ],
+        };
+
+        foreach ($suffixes as $suffix) {
             Cache::forget("form-select:{$tenantId}:{$suffix}");
         }
     }

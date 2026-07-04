@@ -100,4 +100,25 @@ class CustomerTest extends TestCase
         $this->assertContains('new', $labels);
         $this->assertContains('over_limit', $labels);
     }
+
+    public function test_new_customer_appears_in_sales_dropdown_after_cache_warm(): void
+    {
+        $this->actingAsAdmin();
+
+        // Warm the cached customer list before the new customer exists.
+        $this->get(route('sales.index'))->assertOk();
+
+        $this->post(route('customers.store'), [
+            'name' => 'Fresh Customer',
+            'type' => 'retail',
+        ])->assertRedirect();
+
+        $this->get(route('sales.index'))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('customerOptions', fn ($options) => collect($options)->contains(
+                    fn ($option) => ($option['name'] ?? null) === 'Fresh Customer',
+                ))
+            );
+    }
 }
