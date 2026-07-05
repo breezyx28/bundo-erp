@@ -12,6 +12,7 @@ import { useTrans } from '@/composables/useTrans';
 import { useTableFilters } from '@/composables/useTableFilters';
 import { useTableColumns } from '@/composables/useTableColumns';
 import { numericHeader } from '@/utils/tableHeaders';
+import { useFormDraft, useDraftQueryRestore } from '@/composables/useFormDraft';
 
 const props = defineProps({
     summary: { type: Object, required: true },
@@ -87,6 +88,26 @@ const collectForm = useForm({
     collect_date: today,
     collect_reference: '',
 });
+const collectDraft = useFormDraft({
+    key: 'debts.collect',
+    label: t('debts.collect'),
+    routeName: 'debts.index',
+    form: collectForm,
+    active: collectOpen,
+    getSnapshot: () => ({
+        ...collectForm.data(),
+        collectCustomerId: collectCustomerId.value,
+        collectCustomerName: collectCustomerName.value,
+    }),
+    onApply: (data) => {
+        collectCustomerId.value = data.collectCustomerId ?? null;
+        collectCustomerName.value = data.collectCustomerName ?? '';
+        collectForm.collect_amount = data.collect_amount ?? 0;
+        collectForm.collect_method = data.collect_method ?? 'cash';
+        collectForm.collect_date = data.collect_date ?? today;
+        collectForm.collect_reference = data.collect_reference ?? '';
+    },
+});
 function openCollect(row) {
     collectCustomerId.value = row.customer_id;
     collectCustomerName.value = row.customer;
@@ -94,16 +115,24 @@ function openCollect(row) {
     collectForm.clearErrors();
     collectForm.collect_amount = row.total_raw;
     collectForm.collect_date = today;
+    collectDraft.restoreDraft(false);
     collectOpen.value = true;
 }
 function submitCollect() {
     collectForm.post(route('debts.collect', collectCustomerId.value), {
         preserveScroll: true,
         onSuccess: () => {
+            collectDraft.clearDraft();
             collectOpen.value = false;
         },
     });
 }
+
+useDraftQueryRestore('debts', () => {
+    if (collectDraft.restoreDraft(true)) {
+        collectOpen.value = true;
+    }
+});
 
 // Statement
 const statementOpen = ref(false);
@@ -137,7 +166,7 @@ function remind(invoiceId) {
             <UTabs v-model="activeTab" :items="tabItems" :content="false" />
 
             <div v-show="activeTab === 'receivables'" class="space-y-6">
-                <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+                <div class="responsive-stat-grid-5">
                     <StatCard :title="t('debts.outstanding')" :value="summary.total" icon="i-heroicons-banknotes" icon-class="text-primary" />
                     <StatCard :title="t('debts.bucket.current')" :value="summary.current" icon="i-heroicons-check-circle" icon-class="text-success" />
                     <StatCard :title="t('debts.bucket.d30')" :value="summary.d30" icon="i-heroicons-clock" icon-class="text-warning" />
@@ -224,7 +253,7 @@ function remind(invoiceId) {
             </div>
 
             <div v-show="activeTab === 'payables'" class="space-y-6">
-                <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+                <div class="responsive-stat-grid-5">
                     <StatCard :title="t('debts.payables_total')" :value="payablesSummary.total" icon="i-heroicons-banknotes" icon-class="text-primary" />
                     <StatCard :title="t('debts.bucket.current')" :value="payablesSummary.current" icon="i-heroicons-check-circle" icon-class="text-success" />
                     <StatCard :title="t('debts.bucket.d30')" :value="payablesSummary.d30" icon="i-heroicons-clock" icon-class="text-warning" />

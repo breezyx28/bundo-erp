@@ -12,7 +12,7 @@ class Tenant extends Model
     use HasFactory, SoftDeletes;
 
     protected $fillable = [
-        'name', 'domain', 'database_name', 'logo',
+        'name', 'slug', 'domain', 'database_name', 'logo',
         'primary_color', 'secondary_color', 'is_active', 'settings', 'onboarding_completed_at',
     ];
 
@@ -37,8 +37,36 @@ class Tenant extends Model
         return $this->onboarding_completed_at === null;
     }
 
+    public function getRouteKeyName(): string
+    {
+        return 'slug';
+    }
+
     public function modules(): HasMany
     {
         return $this->hasMany(TenantModule::class);
+    }
+
+    protected static function booted(): void
+    {
+        static::creating(function (Tenant $tenant) {
+            if (empty($tenant->slug)) {
+                $tenant->slug = static::uniqueSlug((string) $tenant->name);
+            }
+        });
+    }
+
+    public static function uniqueSlug(string $name): string
+    {
+        $base = \Illuminate\Support\Str::slug($name) ?: 'shop';
+        $slug = $base;
+        $i = 1;
+
+        while (static::query()->where('slug', $slug)->exists()) {
+            $slug = $base.'-'.$i;
+            $i++;
+        }
+
+        return $slug;
     }
 }

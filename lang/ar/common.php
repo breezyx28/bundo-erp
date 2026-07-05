@@ -43,4 +43,11 @@ return [
     'print_columns_hint' => 'اختر الأعمدة التي تريد تضمينها في الطباعة.',
     'date_from' => 'من تاريخ',
     'date_to' => 'إلى تاريخ',
+    'unfinished_forms' => 'نماذج غير مكتملة',
+    'continue_draft' => 'متابعة',
+    'no_drafts' => 'لا توجد نماذج غير مكتملة',
+    'draft_restored' => 'تم استعادة المسودة',
+    'draft_just_now' => 'الآن',
+    'dismiss_draft' => 'تجاهل',
+    'validation_errors' => 'يرجى تصحيح الأخطاء أدناه.',
 ];

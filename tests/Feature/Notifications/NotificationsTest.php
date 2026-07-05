@@ -122,4 +122,32 @@ class NotificationsTest extends TestCase
 
         $this->assertSame(0, $this->user->fresh()->unreadNotifications()->count());
     }
+
+    public function test_notification_summary_returns_json(): void
+    {
+        $product = Product::factory()->for($this->tenant)->create(['reorder_level' => 10]);
+        app(InventoryService::class)->receive($this->branch->id, $product->id, 1, 40);
+        app(NotificationService::class)->scanLowStock($this->tenant->id);
+
+        $this->getJson(route('notifications.summary'))
+            ->assertOk()
+            ->assertJsonStructure(['unread', 'items', 'sound'])
+            ->assertJsonPath('unread', 1)
+            ->assertJsonPath('sound', true);
+    }
+
+    public function test_sound_preference_can_be_disabled(): void
+    {
+        $this->post(route('notifications.preferences'), [
+            'emailAlerts' => false,
+            'soundAlerts' => false,
+        ])->assertRedirect();
+
+        $settings = $this->user->fresh()->settings;
+        $this->assertFalse(data_get($settings, 'notifications.sound'));
+
+        $this->getJson(route('notifications.summary'))
+            ->assertOk()
+            ->assertJsonPath('sound', false);
+    }
 }

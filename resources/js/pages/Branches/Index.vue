@@ -10,6 +10,7 @@ import TablePrintModal from '@/components/TablePrintModal.vue';
 import { useTrans } from '@/composables/useTrans';
 import { useTableFilters } from '@/composables/useTableFilters';
 import { useTableColumns } from '@/composables/useTableColumns';
+import { useResourceForm } from '@/composables/useResourceForm';
 
 const props = defineProps({
     branches: { type: Object, required: true },
@@ -40,9 +41,6 @@ const printRows = computed(() =>
     })),
 );
 
-const modalOpen = ref(false);
-const editingId = ref(null);
-
 const form = useForm({
     name: '',
     code: '',
@@ -54,41 +52,17 @@ const form = useForm({
     is_active: true,
 });
 
-function openCreate() {
-    editingId.value = null;
-    form.reset();
-    form.clearErrors();
-    modalOpen.value = true;
-}
-
-function openEdit(row) {
-    editingId.value = row.id;
-    form.clearErrors();
-    form.name = row.name;
-    form.code = row.code;
-    form.address = row.address ?? '';
-    form.phone = row.phone ?? '';
-    form.email = row.email ?? '';
-    form.primary_color = row.primary_color ?? '#39C6A0';
-    form.secondary_color = row.secondary_color ?? '#228C70';
-    form.is_active = row.is_active;
-    modalOpen.value = true;
-}
-
-function submit() {
-    const options = {
-        preserveScroll: true,
-        onSuccess: () => {
-            modalOpen.value = false;
-        },
-    };
-
-    if (editingId.value) {
-        form.put(route('branches.update', editingId.value), options);
-    } else {
-        form.post(route('branches.store'), options);
-    }
-}
+const {
+    modalOpen: formOpen,
+    editingId: editId,
+    openCreate,
+    openEdit,
+    submit,
+} = useResourceForm(form, {
+    resource: 'branches',
+    draftKey: 'branches',
+    draftLabel: t('nav.branches'),
+});
 </script>
 
 <template>
@@ -157,8 +131,8 @@ function submit() {
         </div>
 
         <FormModal
-            v-model:open="modalOpen"
-            :title="editingId ? t('branches.edit') : t('branches.add')"
+            v-model:open="formOpen"
+            :title="editId ? t('branches.edit') : t('branches.add')"
         >
             <div class="grid gap-4 md:grid-cols-2">
                 <UFormField :label="t('fields.name')" :error="form.errors.name">

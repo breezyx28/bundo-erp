@@ -10,6 +10,7 @@ import TablePrintModal from '@/components/TablePrintModal.vue';
 import { useTrans } from '@/composables/useTrans';
 import { useTableFilters } from '@/composables/useTableFilters';
 import { useTableColumns } from '@/composables/useTableColumns';
+import { useFormDraft, useDraftQueryRestore } from '@/composables/useFormDraft';
 
 const props = defineProps({
     shipments: { type: Object, required: true },
@@ -88,15 +89,24 @@ const form = useForm({
     waybill_number: '',
     notes: '',
 });
+const createDraft = useFormDraft({
+    key: 'shipments.create',
+    label: t('shipping.new'),
+    routeName: 'shipments.index',
+    form,
+    active: formOpen,
+});
 function openCreate() {
     form.reset();
     form.clearErrors();
+    createDraft.restoreDraft(false);
     formOpen.value = true;
 }
 function submit() {
     form.post(route('shipments.store'), {
         preserveScroll: true,
         onSuccess: () => {
+            createDraft.clearDraft();
             formOpen.value = false;
         },
     });
@@ -106,6 +116,18 @@ function submit() {
 const deliverOpen = ref(false);
 const deliverId = ref(null);
 const deliverForm = useForm({ pod: null });
+const deliverDraft = useFormDraft({
+    key: 'shipments.deliver',
+    label: t('shipping.confirm_delivery'),
+    routeName: 'shipments.index',
+    form: deliverForm,
+    active: deliverOpen,
+    getSnapshot: () => ({ deliverId: deliverId.value, ...deliverForm.data() }),
+    onApply: (data) => {
+        deliverId.value = data.deliverId ?? null;
+        deliverForm.pod = data.pod ?? null;
+    },
+});
 function advance(row) {
     if (row.next_status === props.deliveredStatus) {
         deliverId.value = row.id;
@@ -124,6 +146,7 @@ function submitDeliver() {
         preserveScroll: true,
         forceFormData: true,
         onSuccess: () => {
+            deliverDraft.clearDraft();
             deliverOpen.value = false;
         },
     });
@@ -136,6 +159,20 @@ const returnForm = useForm({
     return_product_id: null,
     return_quantity: 1,
     return_reason: '',
+});
+const returnDraft = useFormDraft({
+    key: 'shipments.return',
+    label: t('shipping.return'),
+    routeName: 'shipments.index',
+    form: returnForm,
+    active: returnOpen,
+    getSnapshot: () => ({ returnShipmentId: returnShipmentId.value, ...returnForm.data() }),
+    onApply: (data) => {
+        returnShipmentId.value = data.returnShipmentId ?? null;
+        returnForm.return_product_id = data.return_product_id ?? null;
+        returnForm.return_quantity = data.return_quantity ?? 1;
+        returnForm.return_reason = data.return_reason ?? '';
+    },
 });
 function openReturn(row) {
     returnShipmentId.value = row.id;
@@ -153,10 +190,23 @@ function submitReturn() {
     returnForm.post(route('shipments.return', returnShipmentId.value), {
         preserveScroll: true,
         onSuccess: () => {
+            returnDraft.clearDraft();
             returnOpen.value = false;
         },
     });
 }
+
+useDraftQueryRestore('shipments', (key) => {
+    if (key === 'shipments.create' && createDraft.restoreDraft(true)) {
+        formOpen.value = true;
+    }
+    if (key === 'shipments.deliver' && deliverDraft.restoreDraft(true)) {
+        deliverOpen.value = true;
+    }
+    if (key === 'shipments.return' && returnDraft.restoreDraft(true)) {
+        returnOpen.value = true;
+    }
+});
 
 // Detail
 const detailOpen = ref(false);

@@ -54,11 +54,106 @@
         font-size: 14px;
     }
 
+    html[data-ui-scale='sm'] {
+        font-size: 12px;
+    }
+
+    html[data-ui-scale='lg'] {
+        font-size: 16px;
+    }
+
+    html[data-ui-scale='xl'] {
+        font-size: 18px;
+    }
+
     html[dir='rtl'] {
         --font-sans: 'Cairo', ui-sans-serif, system-ui, sans-serif;
     }
 
     body {
         font-family: var(--font-sans);
+    }
+
+    html[data-custom-text] body {
+        color: var(--display-text-body, inherit);
+    }
+
+    html[data-custom-text] .text-muted,
+    html[data-custom-text] .text-dimmed,
+    html[data-custom-text] .text-toned {
+        color: var(--display-text-muted, inherit);
+    }
+
+    html[data-high-contrast] body {
+        color: var(--display-text-body, #000);
+        background-color: #fff;
+    }
+
+    html[data-high-contrast] .text-muted,
+    html[data-high-contrast] .text-dimmed,
+    html[data-high-contrast] .text-toned {
+        color: var(--display-text-muted, #1f2937);
+    }
+}
+
+@layer components {
+    .responsive-stat-grid {
+        display: grid;
+        gap: 1rem;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    @media (min-width: 640px) {
+        .responsive-stat-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+    }
+
+    @media (min-width: 1024px) {
+        .responsive-stat-grid {
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+        }
+    }
+
+    html[data-ui-scale='lg'] .responsive-stat-grid {
+        @media (min-width: 1024px) {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+    }
+
+    html[data-ui-scale='xl'] .responsive-stat-grid {
+        @media (min-width: 1024px) {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+    }
+
+    .responsive-stat-grid-5 {
+        display: grid;
+        gap: 1rem;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    @media (min-width: 640px) {
+        .responsive-stat-grid-5 {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+    }
+
+    @media (min-width: 1024px) {
+        .responsive-stat-grid-5 {
+            grid-template-columns: repeat(5, minmax(0, 1fr));
+        }
+    }
+
+    html[data-ui-scale='lg'] .responsive-stat-grid-5 {
+        @media (min-width: 1024px) {
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+        }
+    }
+
+    html[data-ui-scale='xl'] .responsive-stat-grid-5 {
+        @media (min-width: 1024px) {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
     }
 }

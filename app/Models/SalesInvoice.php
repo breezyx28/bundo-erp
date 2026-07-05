@@ -25,9 +25,15 @@ class SalesInvoice extends Model
 
     public const PAY_PAID = 'paid';
 
+    public const STATUS_DRAFT = 'draft';
+
+    public const STATUS_POSTED = 'posted';
+
+    public const STATUS_VOID = 'void';
+
     protected $fillable = [
         'tenant_id', 'branch_id', 'customer_id', 'invoice_number', 'invoice_date', 'due_date',
-        'sale_type', 'total_amount', 'total_amount_usd', 'discount_type', 'discount_value',
+        'sale_type', 'status', 'hold_label', 'posted_at', 'total_amount', 'total_amount_usd', 'discount_type', 'discount_value',
         'discount_amount', 'net_amount', 'net_amount_usd', 'cost_total', 'paid_amount', 'balance',
         'payment_status', 'payment_method', 'transaction_number', 'exchange_rate', 'notes', 'created_by',
         'last_reminder_at',
@@ -37,6 +43,7 @@ class SalesInvoice extends Model
         'invoice_date' => 'date',
         'due_date' => 'date',
         'last_reminder_at' => 'datetime',
+        'posted_at' => 'datetime',
         'total_amount' => 'decimal:2',
         'total_amount_usd' => 'decimal:2',
         'discount_value' => 'decimal:2',
@@ -98,10 +105,25 @@ class SalesInvoice extends Model
         return $status ? $query->where('payment_status', $status) : $query;
     }
 
+    public function scopePosted(Builder $query): Builder
+    {
+        return $query->where('status', self::STATUS_POSTED);
+    }
+
+    public function scopeDraft(Builder $query): Builder
+    {
+        return $query->where('status', self::STATUS_DRAFT);
+    }
+
+    public function isDraft(): bool
+    {
+        return $this->status === self::STATUS_DRAFT;
+    }
+
     /** Invoices that still owe money (receivables). */
     public function scopeOutstanding(Builder $query): Builder
     {
-        return $query->where('balance', '>', 0);
+        return $query->posted()->where('balance', '>', 0);
     }
 
     /** Whole days past the due date (or invoice date when no due date); 0 if not yet due. */

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Services\Reporting\FinancialReportService;
 use App\Support\Money;
+use App\Support\TenantMoney;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -34,7 +35,7 @@ class ReportExportController
      */
     protected function build(FinancialReportService $service, string $type, string $from, string $to, string $currency): array
     {
-        $rate = (float) config('money.default_exchange_rate');
+        $rate = TenantMoney::exchangeRate();
         $fmt = function (float $sdg) use ($currency, $rate): string {
             $value = $currency === 'USD' && $rate > 0 ? round($sdg / $rate, 2) : $sdg;
 

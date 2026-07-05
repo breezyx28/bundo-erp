@@ -105,7 +105,7 @@ class ExportService
     protected function sales(): array
     {
         $rows = [];
-        SalesInvoice::query()->with('customer:id,name')
+        SalesInvoice::query()->posted()->with('customer:id,name')
             ->orderByDesc('invoice_date')
             ->chunk(500, function ($chunk) use (&$rows) {
                 foreach ($chunk as $i) {

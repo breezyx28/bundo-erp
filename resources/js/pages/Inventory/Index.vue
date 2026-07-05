@@ -10,6 +10,7 @@ import TablePrintModal from '@/components/TablePrintModal.vue';
 import { useTrans } from '@/composables/useTrans';
 import { useTableFilters } from '@/composables/useTableFilters';
 import { useTableColumns } from '@/composables/useTableColumns';
+import { useFormDraft, useDraftQueryRestore } from '@/composables/useFormDraft';
 
 const props = defineProps({
     products: { type: Object, required: true },
@@ -74,10 +75,18 @@ const receiveForm = useForm({
     r_batch_number: '',
 });
 const receiveVariants = computed(() => variantItems(receiveForm.r_product_id));
+const receiveDraft = useFormDraft({
+    key: 'inventory.receive',
+    label: t('inventory.receive_stock'),
+    routeName: 'inventory.index',
+    form: receiveForm,
+    active: receiveOpen,
+});
 
 function openReceive() {
     receiveForm.reset();
     receiveForm.clearErrors();
+    receiveDraft.restoreDraft(false);
     receiveOpen.value = true;
 }
 
@@ -85,6 +94,7 @@ function submitReceive() {
     receiveForm.post(route('inventory.receive'), {
         preserveScroll: true,
         onSuccess: () => {
+            receiveDraft.clearDraft();
             receiveOpen.value = false;
         },
     });
@@ -99,12 +109,21 @@ const adjustForm = useForm({
     a_reason: '',
 });
 const adjustVariants = computed(() => variantItems(adjustForm.a_product_id));
+const adjustDraft = useFormDraft({
+    key: 'inventory.adjust',
+    label: t('inventory.adjust_stock'),
+    routeName: 'inventory.index',
+    form: adjustForm,
+    active: adjustOpen,
+    getSnapshot: () => ({ ...adjustForm.data() }),
+});
 
 function openAdjust(row) {
     adjustForm.reset();
     adjustForm.clearErrors();
     adjustForm.a_product_id = row.id;
     adjustForm.a_quantity = row.on_hand;
+    adjustDraft.restoreDraft(false);
     adjustOpen.value = true;
 }
 
@@ -112,10 +131,20 @@ function submitAdjust() {
     adjustForm.post(route('inventory.adjust'), {
         preserveScroll: true,
         onSuccess: () => {
+            adjustDraft.clearDraft();
             adjustOpen.value = false;
         },
     });
 }
+
+useDraftQueryRestore('inventory', (key) => {
+    if (key === 'inventory.receive' && receiveDraft.restoreDraft(true)) {
+        receiveOpen.value = true;
+    }
+    if (key === 'inventory.adjust' && adjustDraft.restoreDraft(true)) {
+        adjustOpen.value = true;
+    }
+});
 
 // Movements
 const movementsOpen = ref(false);

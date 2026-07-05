@@ -1,17 +1,21 @@
 <script setup>
-import { ref } from 'vue';
-import { Head, useForm } from '@inertiajs/vue3';
+import { computed, ref } from 'vue';
+import { Head, Link, useForm } from '@inertiajs/vue3';
 import { route } from 'ziggy-js';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { useTrans } from '@/composables/useTrans';
+import { useFormDraft, useDraftQueryRestore } from '@/composables/useFormDraft';
 
 const props = defineProps({
     settings: { type: Object, required: true },
+    invoiceDesigns: { type: Array, default: () => [] },
 });
 
 const { t } = useTrans();
 
 const tab = ref('general');
+const previewOpen = ref(false);
+const previewDesign = ref(null);
 
 const tabItems = [
     { value: 'general', label: t('settings.general') },
@@ -50,29 +54,103 @@ const brandingForm = useForm({
 const invoiceForm = useForm({
     invoice_prefix: props.settings.invoice_prefix,
     invoice_footer: props.settings.invoice_footer,
+    invoice_design: props.settings.invoice_design ?? 'classic',
+});
+
+const generalDraft = useFormDraft({
+    key: 'settings.general',
+    label: t('settings.general'),
+    routeName: 'settings.index',
+    form: generalForm,
+    active: computed(() => tab.value === 'general'),
+});
+
+const currencyDraft = useFormDraft({
+    key: 'settings.currency',
+    label: t('settings.currency'),
+    routeName: 'settings.index',
+    form: currencyForm,
+    active: computed(() => tab.value === 'currency'),
+});
+
+const brandingDraft = useFormDraft({
+    key: 'settings.branding',
+    label: t('settings.branding'),
+    routeName: 'settings.index',
+    form: brandingForm,
+    active: computed(() => tab.value === 'branding'),
+    getSnapshot: () => ({
+        primary_color: brandingForm.primary_color,
+        secondary_color: brandingForm.secondary_color,
+    }),
+    onApply: (data) => {
+        brandingForm.primary_color = data.primary_color ?? props.settings.primary_color;
+        brandingForm.secondary_color = data.secondary_color ?? props.settings.secondary_color;
+    },
+});
+
+const invoiceDraft = useFormDraft({
+    key: 'settings.invoice',
+    label: t('settings.invoice'),
+    routeName: 'settings.index',
+    form: invoiceForm,
+    active: computed(() => tab.value === 'invoice'),
+});
+
+useDraftQueryRestore('settings', (key) => {
+    const tabMap = {
+        'settings.general': 'general',
+        'settings.currency': 'currency',
+        'settings.branding': 'branding',
+        'settings.invoice': 'invoice',
+    };
+    tab.value = tabMap[key] ?? 'general';
+    const draft = { 'settings.general': generalDraft, 'settings.currency': currencyDraft, 'settings.branding': brandingDraft, 'settings.invoice': invoiceDraft }[key];
+    draft?.restoreDraft(true);
 });
 
 function saveGeneral() {
-    generalForm.put(route('settings.general'), { preserveScroll: true });
+    generalForm.put(route('settings.general'), {
+        preserveScroll: true,
+        onSuccess: () => generalDraft.clearDraft(),
+    });
 }
 
 function saveCurrency() {
-    currencyForm.put(route('settings.currency'), { preserveScroll: true });
+    currencyForm.put(route('settings.currency'), {
+        preserveScroll: true,
+        onSuccess: () => currencyDraft.clearDraft(),
+    });
 }
 
 function saveBranding() {
     brandingForm.post(route('settings.branding'), {
         preserveScroll: true,
         forceFormData: true,
+        onSuccess: () => brandingDraft.clearDraft(),
     });
 }
 
 function saveInvoice() {
-    invoiceForm.put(route('settings.invoice'), { preserveScroll: true });
+    invoiceForm.put(route('settings.invoice'), {
+        preserveScroll: true,
+        onSuccess: () => invoiceDraft.clearDraft(),
+    });
 }
 
 function onLogoChange(event) {
     brandingForm.logo = event.target.files[0] ?? null;
+}
+
+function previewUrl(design) {
+    return route('settings.invoice.preview', design);
+}
+
+function openPreview(design, event) {
+    event?.preventDefault();
+    event?.stopPropagation();
+    previewDesign.value = design;
+    previewOpen.value = true;
 }
 </script>
 
@@ -81,9 +159,13 @@ function onLogoChange(event) {
         <Head :title="t('nav.settings')" />
 
         <div class="space-y-6">
-            <h1 class="text-xl font-semibold text-highlighted">
-                {{ t('nav.settings') }}
-            </h1>
+            <div class="flex flex-wrap items-center justify-between gap-4">
+                <h1 class="text-xl font-semibold text-highlighted">
+                    {{ t('nav.settings') }}
+                </h1>
+                <UButton :to="route('shop.settings')" variant="soft" icon="i-heroicons-globe-alt" :label="t('shop.settings')" />
+                <UButton :to="route('preferences.display')" variant="soft" icon="i-heroicons-adjustments-horizontal" :label="t('preferences.display_menu')" />
+            </div>
 
             <UTabs v-model="tab" :items="tabItems" class="w-full">
                 <template #content="{ item }">
@@ -133,7 +215,39 @@ function onLogoChange(event) {
                         </div>
 
                         <!-- Invoice -->
-                        <div v-else-if="item.value === 'invoice'" class="grid max-w-2xl gap-4">
+                        <div v-else-if="item.value === 'invoice'" class="grid max-w-3xl gap-6">
+                            <UFormField :label="t('settings.invoice_design')" :error="invoiceForm.errors.invoice_design">
+                                <p class="mb-3 text-sm text-dimmed">{{ t('settings.invoice_design_help') }}</p>
+                                <div class="grid gap-4 sm:grid-cols-3">
+                                    <div
+                                        v-for="design in invoiceDesigns"
+                                        :key="design.key"
+                                        class="overflow-hidden rounded-lg border transition-colors"
+                                        :class="invoiceForm.invoice_design === design.key ? 'border-primary ring-2 ring-primary/30' : 'border-default'"
+                                    >
+                                        <label class="block cursor-pointer">
+                                            <input v-model="invoiceForm.invoice_design" type="radio" class="sr-only" :value="design.key" />
+                                            <div class="border-b border-default bg-elevated px-3 py-2 text-sm font-medium">{{ design.label }}</div>
+                                            <img
+                                                :src="design.cover"
+                                                :alt="design.label"
+                                                class="h-40 w-full bg-white object-cover object-top"
+                                            />
+                                        </label>
+                                        <div class="border-t border-default bg-default px-3 py-2">
+                                            <UButton
+                                                size="xs"
+                                                color="neutral"
+                                                variant="soft"
+                                                icon="i-heroicons-eye"
+                                                :label="t('settings.preview_example')"
+                                                class="w-full justify-center"
+                                                @click="openPreview(design.key, $event)"
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+                            </UFormField>
                             <UFormField :label="t('settings.invoice_prefix')" :error="invoiceForm.errors.invoice_prefix">
                                 <UInput v-model="invoiceForm.invoice_prefix" class="w-full" />
                             </UFormField>
@@ -145,6 +259,17 @@ function onLogoChange(event) {
                     </UCard>
                 </template>
             </UTabs>
+
+            <UModal v-model:open="previewOpen" :title="t('settings.preview_example')" :ui="{ content: 'sm:max-w-4xl' }">
+                <template #body>
+                    <iframe
+                        v-if="previewDesign"
+                        :src="previewUrl(previewDesign)"
+                        class="h-[70vh] w-full rounded-md border border-default bg-white"
+                        :title="t('settings.preview_example')"
+                    />
+                </template>
+            </UModal>
         </div>
     </AppLayout>
 </template>

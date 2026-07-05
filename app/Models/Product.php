@@ -22,8 +22,8 @@ class Product extends Model implements HasMedia
 
     protected $fillable = [
         'tenant_id', 'category_id', 'brand_id', 'name', 'sku', 'barcode',
-        'description', 'unit', 'cost_price', 'selling_price', 'reorder_level',
-        'has_variants', 'is_active',
+        'description', 'shop_description', 'unit', 'cost_price', 'selling_price', 'reorder_level',
+        'has_variants', 'is_active', 'show_in_shop', 'featured_in_shop',
     ];
 
     protected $casts = [
@@ -32,6 +32,8 @@ class Product extends Model implements HasMedia
         'reorder_level' => 'integer',
         'has_variants' => 'boolean',
         'is_active' => 'boolean',
+        'show_in_shop' => 'boolean',
+        'featured_in_shop' => 'boolean',
     ];
 
     public function getActivitylogOptions(): LogOptions

@@ -97,7 +97,7 @@ function refresh() {
                 </div>
             </div>
 
-            <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div class="responsive-stat-grid">
                 <StatCard :title="t('dashboard.revenue_month')" :value="fmt(kpis.revenue.month)" icon="i-heroicons-arrow-trending-up" icon-class="text-success" :hint="t('dashboard.year') + ': ' + fmt(kpis.revenue.year)" />
                 <StatCard :title="t('dashboard.expenses_month')" :value="fmt(kpis.expenses.month)" icon="i-heroicons-arrow-trending-down" icon-class="text-error" :hint="t('dashboard.year') + ': ' + fmt(kpis.expenses.year)" />
                 <StatCard :title="t('dashboard.profit_month')" :value="fmt(kpis.profit.month)" icon="i-heroicons-banknotes" icon-class="text-primary" :hint="t('dashboard.year') + ': ' + fmt(kpis.profit.year)" />

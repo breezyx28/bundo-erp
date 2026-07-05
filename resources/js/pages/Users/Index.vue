@@ -65,6 +65,8 @@ const {
     submit,
 } = useResourceForm(form, {
     resource: 'users',
+    draftKey: 'users',
+    draftLabel: t('nav.users'),
     only: ['name', 'email', 'phone', 'role', 'branchIds', 'is_active'],
 });
 </script>

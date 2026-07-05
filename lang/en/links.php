@@ -1,0 +1,26 @@
+<?php
+
+return [
+    'title' => 'Links',
+    'search_placeholder' => 'Search pages...',
+    'no_results' => 'No pages match your search.',
+    'quick_stats' => 'Quick statistics',
+    'quick_access' => 'Quick access',
+    'recent' => 'Recently used',
+    'all_pages' => 'All pages',
+    'open_launcher' => 'Open navigation',
+    'tablet_mode' => 'Tablet mode',
+    'tablet_mode_hint' => 'App-icon navigation without the sidebar',
+    'command_placeholder' => 'Search pages and actions...',
+    'pages' => 'Pages',
+    'actions' => 'Quick actions',
+    'revenue_month' => 'Revenue (month)',
+    'profit_month' => 'Profit (month)',
+    'outstanding' => 'Outstanding',
+    'low_stock' => 'Low stock',
+    'new_sale' => 'New sale',
+    'new_purchase' => 'New purchase order',
+    'new_customer' => 'Add customer',
+    'new_product' => 'Add product',
+    'new_expense' => 'Add expense',
+];

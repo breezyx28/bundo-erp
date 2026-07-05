@@ -69,6 +69,8 @@ const {
     destroy,
 } = useResourceForm(form, {
     resource: 'categories',
+    draftKey: 'categories',
+    draftLabel: t('nav.categories'),
     only: ['name', 'parent_id', 'description', 'is_active'],
 });
 

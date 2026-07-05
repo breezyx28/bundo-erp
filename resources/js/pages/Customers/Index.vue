@@ -11,6 +11,8 @@ import { useTrans } from '@/composables/useTrans';
 import { useTableFilters } from '@/composables/useTableFilters';
 import { useTableColumns } from '@/composables/useTableColumns';
 import { useResourceForm } from '@/composables/useResourceForm';
+import { useOpenCreateQuery } from '@/composables/useOpenCreateQuery';
+import AutocompleteInput from '@/components/AutocompleteInput.vue';
 
 const props = defineProps({
     customers: { type: Object, required: true },
@@ -78,7 +80,9 @@ const {
     submit,
     askDelete,
     destroy,
-} = useResourceForm(form, { resource: 'customers' });
+} = useResourceForm(form, { resource: 'customers', draftKey: 'customers', draftLabel: t('nav.customers') });
+
+useOpenCreateQuery(openCreate, () => props.canManage);
 </script>
 
 <template>
@@ -188,7 +192,7 @@ const {
                     <UInput v-model="form.opening_balance" type="number" step="0.01" class="w-full" />
                 </UFormField>
                 <UFormField :label="t('fields.address')" :error="form.errors.address" class="sm:col-span-2">
-                    <UTextarea v-model="form.address" :rows="2" class="w-full" />
+                    <AutocompleteInput v-model="form.address" field="customer_address" />
                 </UFormField>
                 <UFormField :label="t('fields.notes')" :error="form.errors.notes" class="sm:col-span-2">
                     <UTextarea v-model="form.notes" :rows="2" class="w-full" />

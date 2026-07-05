@@ -110,7 +110,7 @@ class AnalyticsService
     protected function monthlyRevenue(Carbon $month): float
     {
         // Eloquent query respects the active BranchScope (single branch or consolidated).
-        return round((float) SalesInvoice::query()
+        return round((float) SalesInvoice::query()->posted()
             ->whereBetween('invoice_date', DateRange::bounds(
                 $month->copy()->startOfMonth()->toDateString(),
                 $month->copy()->endOfMonth()->toDateString(),
@@ -169,6 +169,7 @@ class AnalyticsService
                 ->join('sales_invoices as si', 'si.id', '=', 'sii.sales_invoice_id')
                 ->join('products as p', 'p.id', '=', 'sii.product_id')
                 ->whereNull('si.deleted_at')
+                ->where('si.status', 'posted')
                 ->whereIn('si.branch_id', $ids)
                 ->whereBetween('si.invoice_date', $range)
                 ->groupBy('p.id', 'p.name')
@@ -196,6 +197,7 @@ class AnalyticsService
             $soldRows = DB::table('sales_invoice_items as sii')
                 ->join('sales_invoices as si', 'si.id', '=', 'sii.sales_invoice_id')
                 ->whereNull('si.deleted_at')
+                ->where('si.status', 'posted')
                 ->whereIn('si.branch_id', $ids)
                 ->whereBetween('si.invoice_date', $range)
                 ->groupBy('sii.product_id')
@@ -238,6 +240,7 @@ class AnalyticsService
             $rows = DB::table('sales_invoices as si')
                 ->join('customers as c', 'c.id', '=', 'si.customer_id')
                 ->whereNull('si.deleted_at')
+                ->where('si.status', 'posted')
                 ->whereIn('si.branch_id', $ids)
                 ->groupBy('c.id', 'c.name')
                 ->orderByDesc('clv')
@@ -302,6 +305,7 @@ class AnalyticsService
             $soldRows = DB::table('sales_invoice_items as sii')
                 ->join('sales_invoices as si', 'si.id', '=', 'sii.sales_invoice_id')
                 ->whereNull('si.deleted_at')
+                ->where('si.status', 'posted')
                 ->whereIn('si.branch_id', $ids)
                 ->whereBetween('si.invoice_date', $range)
                 ->groupBy('sii.product_id')
@@ -362,6 +366,7 @@ class AnalyticsService
 
             $sales = DB::table('sales_invoices')
                 ->whereNull('deleted_at')
+                ->where('status', 'posted')
                 ->whereIn('branch_id', $ids)
                 ->groupBy('branch_id')
                 ->get([

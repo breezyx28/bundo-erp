@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\SalesInvoice;
 use App\Models\Tenant;
+use App\Support\InvoiceDesign;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Contracts\View\View;
 use Symfony\Component\HttpFoundation\Response;
@@ -13,13 +14,13 @@ class InvoiceDocumentController
     /** Printable HTML view (auto-triggers the browser print dialog). */
     public function print(SalesInvoice $invoice): View
     {
-        return view('pdf.invoice', $this->data($invoice, print: true));
+        return view(InvoiceDesign::currentView(), $this->data($invoice, print: true));
     }
 
     /** Streamed PDF download. */
     public function pdf(SalesInvoice $invoice): Response
     {
-        $pdf = Pdf::loadView('pdf.invoice', $this->data($invoice))->setPaper('a4');
+        $pdf = Pdf::loadView(InvoiceDesign::currentView(), $this->data($invoice))->setPaper('a4');
 
         return $pdf->download($invoice->invoice_number.'.pdf');
     }

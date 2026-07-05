@@ -40,7 +40,7 @@ class FinancialReportService
     {
         $range = DateRange::bounds($from, $to);
 
-        $salesQuery = SalesInvoice::query()->whereBetween('invoice_date', $range);
+        $salesQuery = SalesInvoice::query()->posted()->whereBetween('invoice_date', $range);
         $revenue = round((float) (clone $salesQuery)->sum('net_amount'), 2);
         $cogs = round((float) $salesQuery->sum('cost_total'), 2);
         $grossProfit = round($revenue - $cogs, 2);
@@ -116,6 +116,7 @@ class FinancialReportService
 
         $sales = DB::table('sales_invoices')
             ->whereNull('deleted_at')
+            ->where('status', 'posted')
             ->whereIn('branch_id', $ids)
             ->whereBetween('invoice_date', $range)
             ->groupBy('branch_id')

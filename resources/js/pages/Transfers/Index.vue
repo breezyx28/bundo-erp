@@ -11,6 +11,7 @@ import TablePrintModal from '@/components/TablePrintModal.vue';
 import { useTrans } from '@/composables/useTrans';
 import { useTableFilters } from '@/composables/useTableFilters';
 import { useTableColumns } from '@/composables/useTableColumns';
+import { useFormDraft, useDraftQueryRestore } from '@/composables/useFormDraft';
 
 const props = defineProps({
     transfers: { type: Object, required: true },
@@ -66,6 +67,14 @@ const form = useForm({
     notes: '',
     items: [],
 });
+const transferDraft = useFormDraft({
+    key: 'transfers.create',
+    label: t('inventory.new_transfer'),
+    routeName: 'transfers.index',
+    form,
+    active: createOpen,
+    isEmpty: () => !form.items.some((item) => item.product_id),
+});
 function addItem() {
     form.items.push({ product_id: null, quantity: 1 });
 }
@@ -77,16 +86,24 @@ function openCreate() {
     form.clearErrors();
     form.from_branch_id = props.defaultFromBranch;
     form.items = [{ product_id: null, quantity: 1 }];
+    transferDraft.restoreDraft(false);
     createOpen.value = true;
 }
 function submit() {
     form.post(route('transfers.store'), {
         preserveScroll: true,
         onSuccess: () => {
+            transferDraft.clearDraft();
             createOpen.value = false;
         },
     });
 }
+
+useDraftQueryRestore('transfers', () => {
+    if (transferDraft.restoreDraft(true)) {
+        createOpen.value = true;
+    }
+});
 
 function applyAction(action, id) {
     router.post(route('transfers.action', id), { action }, { preserveScroll: true });

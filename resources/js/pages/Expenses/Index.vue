@@ -12,6 +12,8 @@ import { useTrans } from '@/composables/useTrans';
 import { useTableFilters } from '@/composables/useTableFilters';
 import { useTableColumns } from '@/composables/useTableColumns';
 import { useResourceForm } from '@/composables/useResourceForm';
+import { useOpenCreateQuery } from '@/composables/useOpenCreateQuery';
+import AutocompleteInput from '@/components/AutocompleteInput.vue';
 
 const props = defineProps({
     expenses: { type: Object, required: true },
@@ -89,13 +91,18 @@ const {
     openEdit,
     askDelete,
     destroy,
+    clearDraft,
 } = useResourceForm(form, {
     resource: 'expenses',
+    draftKey: 'expenses',
+    draftLabel: t('nav.expenses'),
     only: [
         'expense_category_id', 'amount', 'description', 'expense_date',
         'payment_method', 'receipt_number', 'linked', 'purchase_order_id',
     ],
 });
+
+useOpenCreateQuery(openCreate, () => props.canManage);
 
 function onReceiptChange(event) {
     form.receipt = event.target.files[0] ?? null;
@@ -109,6 +116,7 @@ function submit() {
         preserveScroll: true,
         forceFormData: withFile,
         onSuccess: () => {
+            clearDraft();
             modalOpen.value = false;
         },
     };
@@ -275,7 +283,7 @@ function submit() {
                     </UFormField>
                 </div>
                 <UFormField :label="t('fields.description')" :error="form.errors.description">
-                    <UTextarea v-model="form.description" :rows="2" class="w-full" />
+                    <AutocompleteInput v-model="form.description" field="expense_description" />
                 </UFormField>
                 <div class="grid gap-4 sm:grid-cols-2">
                     <UFormField :label="t('sales.date')" :error="form.errors.expense_date">

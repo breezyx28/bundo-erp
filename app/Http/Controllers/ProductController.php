@@ -54,6 +54,8 @@ class ProductController extends Controller
                     'reorder_level' => $product->reorder_level,
                     'description' => $product->description,
                     'is_active' => (bool) $product->is_active,
+                    'show_in_shop' => (bool) $product->show_in_shop,
+                    'featured_in_shop' => (bool) $product->featured_in_shop,
                     'has_variants' => (bool) $product->has_variants,
                     'image' => $product->getFirstMediaUrl('images', 'thumb') ?: null,
                     'variants' => $product->variants->map(fn ($variant) => [

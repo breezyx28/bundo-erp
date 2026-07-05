@@ -24,9 +24,13 @@ class AuthController extends Controller
 
         Auth::user()->forceFill(['last_login_at' => now()])->saveQuietly();
 
-        $default = Auth::user()->hasRole('super_admin')
-            ? route('platform.dashboard')
-            : route('dashboard');
+        $user = Auth::user();
+
+        $default = match (true) {
+            $user->hasRole('super_admin') => route('platform.dashboard'),
+            data_get($user->settings, 'layout_mode') === 'tablet' => route('links.index'),
+            default => route('dashboard'),
+        };
 
         return redirect()->intended($default);
     }

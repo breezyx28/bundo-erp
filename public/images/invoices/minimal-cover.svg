@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 200" fill="none">
+  <rect width="320" height="200" fill="#fff"/>
+  <line x1="16" y1="56" x2="304" y2="56" stroke="#ddd" stroke-width="1"/>
+  <text x="160" y="36" text-anchor="middle" font-family="sans-serif" font-size="18" font-weight="700" fill="#222">Minimal</text>
+  <text x="160" y="72" text-anchor="middle" font-family="sans-serif" font-size="10" fill="#777">INV-0001</text>
+  <rect x="16" y="88" width="288" height="10" fill="#f5f5f5"/>
+  <rect x="16" y="106" width="288" height="10" fill="#f5f5f5"/>
+  <rect x="16" y="124" width="288" height="10" fill="#f5f5f5"/>
+  <rect x="200" y="148" width="104" height="32" fill="#fafafa" stroke="#eee"/>
+</svg>

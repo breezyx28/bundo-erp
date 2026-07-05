@@ -10,6 +10,8 @@ import TablePrintModal from '@/components/TablePrintModal.vue';
 import { useTrans } from '@/composables/useTrans';
 import { useTableFilters } from '@/composables/useTableFilters';
 import { useTableColumns } from '@/composables/useTableColumns';
+import { useOpenCreateQuery } from '@/composables/useOpenCreateQuery';
+import { useFormDraft, useDraftQueryRestore } from '@/composables/useFormDraft';
 
 const props = defineProps({
     orders: { type: Object, required: true },
@@ -76,6 +78,8 @@ const paymentStatusColor = (s) => ({
 const today = new Date().toISOString().slice(0, 10);
 const formOpen = ref(false);
 const editingId = ref(null);
+const activeDraftKey = ref('purchases.create');
+const activeDraftLabel = ref(t('purchasing.new_po'));
 const form = useForm({
     supplier_id: null,
     order_date: today,
@@ -83,6 +87,35 @@ const form = useForm({
     payment_due_date: null,
     notes: '',
     items: [],
+});
+
+const purchaseDraft = useFormDraft({
+    key: activeDraftKey,
+    label: activeDraftLabel,
+    routeName: 'purchases.index',
+    form,
+    active: formOpen,
+    getSnapshot: () => ({ ...form.data(), editingId: editingId.value }),
+    onApply: (data) => {
+        editingId.value = data.editingId ?? null;
+        const { editingId: _id, ...rest } = data;
+        Object.keys(rest).forEach((field) => {
+            if (field in form) {
+                form[field] = rest[field];
+            }
+        });
+    },
+    isEmpty: () => !form.items.some((item) => item.product_id),
+});
+
+useDraftQueryRestore('purchases', (key) => {
+    activeDraftKey.value = key;
+    activeDraftLabel.value = key.includes('.edit:')
+        ? `${t('purchasing.new_po')} (#${key.split(':')[1]})`
+        : t('purchasing.new_po');
+    if (purchaseDraft.restoreDraft(true)) {
+        formOpen.value = true;
+    }
 });
 
 function resetItems() {
@@ -97,12 +130,17 @@ function removeItem(index) {
 
 function openCreate() {
     editingId.value = null;
+    activeDraftKey.value = 'purchases.create';
+    activeDraftLabel.value = t('purchasing.new_po');
     form.reset();
     form.clearErrors();
     form.order_date = today;
     resetItems();
+    purchaseDraft.restoreDraft(false);
     formOpen.value = true;
 }
+
+useOpenCreateQuery(openCreate, () => props.canCreate);
 
 function openEdit(id) {
     router.reload({
@@ -113,6 +151,8 @@ function openEdit(id) {
                 return;
             }
             editingId.value = props.editing.id;
+            activeDraftKey.value = `purchases.edit:${props.editing.id}`;
+            activeDraftLabel.value = `${t('purchasing.new_po')} (#${props.editing.id})`;
             form.clearErrors();
             form.supplier_id = props.editing.supplier_id;
             form.order_date = props.editing.order_date;
@@ -122,6 +162,7 @@ function openEdit(id) {
             form.items = props.editing.items.length
                 ? props.editing.items.map((i) => ({ ...i }))
                 : [{ product_id: null, quantity: 1, cost_per_unit: 0 }];
+            purchaseDraft.restoreDraft(false);
             formOpen.value = true;
         },
     });
@@ -131,6 +172,7 @@ function submit() {
     const options = {
         preserveScroll: true,
         onSuccess: () => {
+            purchaseDraft.clearDraft();
             formOpen.value = false;
         },
     };
@@ -288,7 +330,7 @@ function openDetail(id) {
             width="sm:max-w-3xl"
         >
             <div class="grid gap-4">
-                <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                <div class="responsive-stat-grid">
                     <UFormField :label="t('nav.suppliers')" :error="form.errors.supplier_id">
                         <USelectMenu v-model="form.supplier_id" :items="supplierItems" value-key="value" searchable class="w-full" />
                     </UFormField>

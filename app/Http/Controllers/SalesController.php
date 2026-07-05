@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Controllers\Concerns\AppliesTableFilters;
 use App\Http\Controllers\Concerns\InteractsWithToast;
+use App\Http\Requests\SalesDraftRequest;
 use App\Http\Requests\SalesInvoiceRequest;
 use App\Models\Product;
 use App\Models\ProductBatch;
@@ -33,6 +34,7 @@ class SalesController extends Controller
         $currencyConfig = config("money.currencies.{$base}", ['symbol' => $base, 'decimals' => 2]);
 
         $query = SalesInvoice::query()
+            ->posted()
             ->search($search)
             ->status($statusFilter)
             ->with(['customer:id,name']);
@@ -75,7 +77,6 @@ class SalesController extends Controller
                 ['value' => 'percentage', 'label' => '%'],
                 ['value' => 'fixed', 'label' => Money::base()],
             ],
-            'defaultExchangeRate' => (float) config('money.default_exchange_rate'),
             'currency' => ['symbol' => $currencyConfig['symbol'], 'decimals' => $currencyConfig['decimals']],
             'detail' => Inertia::optional(fn () => $this->detailData($request->integer('detail'))),
             'sortOptions' => [
@@ -92,7 +93,137 @@ class SalesController extends Controller
             'canCreate' => Gate::allows('invoices.create'),
             'canPay' => Gate::allows('payments.create'),
             'canVoid' => Gate::allows('invoices.delete'),
+            'drafts' => SalesInvoice::query()
+                ->draft()
+                ->with(['customer:id,name', 'items:product_id,quantity,unit_price,sales_invoice_id'])
+                ->withCount('items')
+                ->orderByDesc('updated_at')
+                ->limit(50)
+                ->get()
+                ->map(fn (SalesInvoice $d) => [
+                    'id' => $d->id,
+                    'hold_label' => $d->hold_label,
+                    'customer' => $d->customer?->name,
+                    'item_count' => $d->items_count,
+                    'net_amount' => Money::format($d->net_amount),
+                    'net_amount_raw' => (float) $d->net_amount,
+                    'created_at' => $d->created_at?->format('Y-m-d H:i'),
+                    'sale_type' => $d->sale_type,
+                    'customer_id' => $d->customer_id,
+                    'invoice_date' => $d->invoice_date?->format('Y-m-d'),
+                    'due_date' => $d->due_date?->format('Y-m-d'),
+                    'discount_type' => $d->discount_type,
+                    'discount_value' => (float) $d->discount_value,
+                    'exchange_rate' => (float) $d->exchange_rate,
+                    'notes' => $d->notes,
+                    'items' => $d->items->map(fn ($item) => [
+                        'product_id' => $item->product_id,
+                        'quantity' => $item->quantity,
+                        'unit_price' => (float) $item->unit_price,
+                    ])->all(),
+                ]),
         ]);
+    }
+
+    public function saveDraft(SalesDraftRequest $request, SalesService $service): RedirectResponse
+    {
+        $data = $request->validated();
+
+        try {
+            $service->saveDraft([
+                'id' => $data['id'] ?? null,
+                'customer_id' => $data['customer_id'] ?? null,
+                'invoice_date' => $data['invoice_date'] ?? now()->toDateString(),
+                'due_date' => $data['due_date'] ?? null,
+                'sale_type' => $data['sale_type'] ?? SalesInvoice::TYPE_CASH,
+                'discount_type' => $data['discount_type'] ?? null,
+                'discount_value' => (float) ($data['discount_value'] ?? 0),
+                'exchange_rate' => (float) ($data['exchange_rate'] ?? 0),
+                'notes' => $data['notes'] ?? null,
+                'hold_label' => $data['hold_label'] ?? null,
+            ], $data['items'] ?? []);
+        } catch (\Throwable $e) {
+            $this->toastError($e->getMessage());
+
+            return redirect()->back();
+        }
+
+        $this->toastSuccess(__('sales.order_held'));
+
+        return redirect()->route('sales.index');
+    }
+
+    public function postDraft(Request $request, SalesInvoice $sale, SalesService $service): RedirectResponse
+    {
+        Gate::authorize('invoices.create');
+
+        if (! $sale->isDraft()) {
+            $this->toastError(__('sales.not_a_draft'));
+
+            return redirect()->back();
+        }
+
+        $data = $request->validate([
+            'customer_id' => 'nullable|integer|exists:customers,id',
+            'sale_type' => 'nullable|in:cash,credit',
+            'invoice_date' => 'nullable|date',
+            'due_date' => 'nullable|date|after_or_equal:invoice_date',
+            'discount_type' => 'nullable|in:percentage,fixed',
+            'discount_value' => 'nullable|numeric|min:0',
+            'exchange_rate' => 'nullable|numeric|min:0',
+            'notes' => 'nullable|string|max:1000',
+            'payment_method' => 'required|in:cash,bank_transfer,check,mobile_money',
+            'paid_amount' => 'nullable|numeric|min:0',
+            'items' => 'nullable|array|min:1',
+            'items.*.product_id' => 'required|integer|exists:products,id',
+            'items.*.quantity' => 'required|integer|min:1',
+            'items.*.unit_price' => 'required|numeric|min:0',
+        ]);
+
+        try {
+            if ($request->filled('items')) {
+                $service->saveDraft([
+                    'id' => $sale->id,
+                    'customer_id' => $data['customer_id'] ?? $sale->customer_id,
+                    'invoice_date' => $data['invoice_date'] ?? $sale->invoice_date?->toDateString(),
+                    'due_date' => $data['due_date'] ?? $sale->due_date?->toDateString(),
+                    'sale_type' => $data['sale_type'] ?? $sale->sale_type,
+                    'discount_type' => $data['discount_type'] ?? null,
+                    'discount_value' => (float) ($data['discount_value'] ?? 0),
+                    'exchange_rate' => (float) ($data['exchange_rate'] ?? $sale->exchange_rate),
+                    'notes' => $data['notes'] ?? null,
+                    'hold_label' => $sale->hold_label,
+                ], $data['items']);
+                $sale->refresh();
+            }
+
+            $service->postDraft($sale, [
+                'payment_method' => $data['payment_method'],
+                'paid_amount' => (float) ($data['paid_amount'] ?? 0),
+            ]);
+        } catch (\Throwable $e) {
+            $this->toastError($e->getMessage());
+
+            return redirect()->back();
+        }
+
+        $this->toastSuccess(__('sales.invoice_created'));
+
+        return redirect()->route('sales.index');
+    }
+
+    public function discardDraft(SalesInvoice $sale, SalesService $service): RedirectResponse
+    {
+        Gate::authorize('invoices.create');
+
+        try {
+            $service->discardDraft($sale);
+            $this->toastSuccess(__('sales.draft_discarded'));
+        } catch (\Throwable $e) {
+            $this->toastError($e->getMessage());
+        }
+
+        return redirect()->route('sales.index');
     }
 
     public function store(SalesInvoiceRequest $request, SalesService $service): RedirectResponse

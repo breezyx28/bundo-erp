@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Controllers\Concerns\InteractsWithToast;
 use App\Services\Analytics\AnalyticsService;
+use App\Support\TenantMoney;
 use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -20,7 +21,7 @@ class AnalyticsController extends Controller
             'customers' => $service->customerAnalysis(),
             'inventory' => $service->inventoryOptimization(),
             'ranking' => $service->branchRanking(),
-            'rate' => (float) config('money.default_exchange_rate'),
+            'rate' => TenantMoney::exchangeRate(),
             'currencies' => [
                 'SDG' => $this->currency('SDG'),
                 'USD' => $this->currency('USD'),

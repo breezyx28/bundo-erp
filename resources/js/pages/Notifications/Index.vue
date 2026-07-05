@@ -8,6 +8,7 @@ const props = defineProps({
     notifications: { type: Object, required: true },
     filter: { type: String, default: 'all' },
     emailAlerts: { type: Boolean, default: false },
+    soundAlerts: { type: Boolean, default: true },
 });
 
 const { t } = useTrans();
@@ -31,7 +32,7 @@ function markAllRead() {
     router.post(route('notifications.mark-all'), {}, { preserveScroll: true });
 }
 
-const prefForm = useForm({ emailAlerts: props.emailAlerts });
+const prefForm = useForm({ emailAlerts: props.emailAlerts, soundAlerts: props.soundAlerts });
 function savePreferences() {
     prefForm.post(route('notifications.preferences'), { preserveScroll: true });
 }
@@ -108,6 +109,13 @@ function goToPage(page) {
                                 <p class="text-xs text-muted">{{ t('notifications.email_alerts_hint') }}</p>
                             </div>
                             <USwitch v-model="prefForm.emailAlerts" />
+                        </label>
+                        <label class="mt-3 flex cursor-pointer items-center justify-between gap-3 rounded-lg border border-default bg-elevated/30 px-3 py-2.5">
+                            <div>
+                                <span class="text-sm font-medium">{{ t('notifications.sound_alerts') }}</span>
+                                <p class="text-xs text-muted">{{ t('notifications.sound_alerts_hint') }}</p>
+                            </div>
+                            <USwitch v-model="prefForm.soundAlerts" />
                         </label>
                         <template #footer>
                             <div class="flex justify-end">

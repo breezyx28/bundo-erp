@@ -18,8 +18,11 @@ use App\Http\Controllers\InvoiceDocumentController;
 use App\Http\Controllers\LogisticsController;
 use App\Http\Controllers\NotificationActionController;
 use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\NotificationSummaryController;
 use App\Http\Controllers\OnboardingController;
+use App\Http\Controllers\LinksController;
 use App\Http\Controllers\PlatformController;
+use App\Http\Controllers\PreferenceController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\PurchaseController;
 use App\Http\Controllers\ReportController;
@@ -28,6 +31,9 @@ use App\Http\Controllers\SalesController;
 use App\Http\Controllers\ShipmentController;
 use App\Http\Controllers\TenantController;
 use App\Http\Controllers\SettingsController;
+use App\Http\Controllers\ShopController;
+use App\Http\Controllers\ShopSettingsController;
+use App\Http\Controllers\SuggestionController;
 use App\Http\Controllers\SupplierController;
 use App\Http\Controllers\TransferController;
 use App\Http\Controllers\UserController;
@@ -54,14 +60,31 @@ Route::get('/locale/{locale}', function (string $locale) {
     return back();
 })->name('locale.switch');
 
+Route::prefix('shop/{tenant:slug}')
+    ->middleware(\App\Http\Middleware\ResolveShopTenant::class)
+    ->group(function () {
+        Route::get('/', [ShopController::class, 'index'])->name('shop.index');
+        Route::get('/products/{product}', [ShopController::class, 'show'])->name('shop.show');
+    });
+
 Route::middleware('auth')->group(function () {
     // Shell actions (Inertia topbar): branch scope + notification bell
     Route::post('/branch-context', [BranchContextController::class, 'update'])->name('branch-context.update');
     Route::post('/notifications/{id}/read', [NotificationActionController::class, 'read'])->name('notifications.read');
     Route::post('/notifications/read-all', [NotificationActionController::class, 'readAll'])->name('notifications.read-all');
+    Route::get('/notifications/summary', NotificationSummaryController::class)->name('notifications.summary');
 
     Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
     Route::post('/dashboard/refresh', [DashboardController::class, 'refresh'])->name('dashboard.refresh');
+
+    // Tablet mode: app-icon launcher home + per-user layout preference
+    Route::get('/links', [LinksController::class, 'index'])->name('links.index');
+    Route::post('/preferences/layout', [PreferenceController::class, 'saveLayout'])->name('preferences.layout');
+    Route::get('/preferences/display', [PreferenceController::class, 'display'])->name('preferences.display');
+    Route::post('/preferences/display', [PreferenceController::class, 'saveDisplay'])->name('preferences.display.save');
+
+    // Autocomplete suggestions for whitelisted free-text fields
+    Route::get('/suggestions', SuggestionController::class)->name('suggestions');
 
     // Onboarding (Phase 13)
     Route::get('/onboarding', [OnboardingController::class, 'index'])->name('onboarding.index');
@@ -94,6 +117,9 @@ Route::middleware('auth')->group(function () {
         Route::put('/settings/currency', [SettingsController::class, 'saveCurrency'])->name('settings.currency');
         Route::post('/settings/branding', [SettingsController::class, 'saveBranding'])->name('settings.branding');
         Route::put('/settings/invoice', [SettingsController::class, 'saveInvoice'])->name('settings.invoice');
+        Route::get('/settings/invoice/preview/{design}', [SettingsController::class, 'previewInvoice'])->name('settings.invoice.preview');
+        Route::get('/settings/shop', [ShopSettingsController::class, 'index'])->name('shop.settings');
+        Route::post('/settings/shop', [ShopSettingsController::class, 'save'])->name('shop.settings.save');
     });
     Route::middleware('permission:users.manage')->group(function () {
         Route::get('/users', [UserController::class, 'index'])->name('users.index');
@@ -106,6 +132,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/products', [ProductController::class, 'index'])->name('products.index');
         Route::post('/products', [ProductController::class, 'store'])->name('products.store');
         Route::put('/products/{product}', [ProductController::class, 'update'])->name('products.update');
+        Route::post('/products/{product}/shop', [ShopSettingsController::class, 'toggleProduct'])->name('products.shop.toggle');
         Route::delete('/products/{product}', [ProductController::class, 'destroy'])->name('products.destroy');
     });
     Route::middleware('permission:categories.manage')->group(function () {
@@ -159,6 +186,9 @@ Route::middleware('auth')->group(function () {
     Route::middleware('permission:invoices.view')->group(function () {
         Route::get('/sales', [SalesController::class, 'index'])->name('sales.index');
         Route::post('/sales', [SalesController::class, 'store'])->name('sales.store');
+        Route::post('/sales/draft', [SalesController::class, 'saveDraft'])->name('sales.draft');
+        Route::post('/sales/{sale}/post', [SalesController::class, 'postDraft'])->name('sales.post');
+        Route::delete('/sales/{sale}/draft', [SalesController::class, 'discardDraft'])->name('sales.draft.discard');
         Route::post('/sales/{sale}/payment', [SalesController::class, 'payment'])->name('sales.payment');
         Route::post('/sales/{sale}/void', [SalesController::class, 'void'])->name('sales.void');
     });

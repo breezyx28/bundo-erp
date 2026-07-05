@@ -1,21 +1,42 @@
 import { ref } from 'vue';
 import { router } from '@inertiajs/vue3';
 import { route as ziggyRoute } from 'ziggy-js';
+import { useFormDraft, useDraftQueryRestore } from '@/composables/useFormDraft';
 
 /**
  * Standard create/edit-modal + delete-confirm workflow for a RESTful resource.
- *
- * @param {import('@inertiajs/vue3').InertiaForm} form  Inertia useForm() instance.
- * @param {object} options
- * @param {string} options.resource  Route name base (e.g. 'brands' -> brands.store/update/destroy).
- * @param {string[]} [options.only]  Fields to copy from a row when editing.
  */
-export function useResourceForm(form, { resource, only } = {}) {
+export function useResourceForm(form, { resource, only, draftKey, draftLabel } = {}) {
     const modalOpen = ref(false);
     const editingId = ref(null);
     const deleteOpen = ref(false);
     const deleteId = ref(null);
     const deleting = ref(false);
+
+    const activeDraftKey = ref(draftKey ? `${draftKey}.create` : '');
+    const activeDraftLabel = ref(draftLabel ?? '');
+
+    const draft = draftKey
+        ? useFormDraft({
+            key: activeDraftKey,
+            label: activeDraftLabel,
+            routeName: `${resource}.index`,
+            form,
+            active: modalOpen,
+        })
+        : null;
+
+    if (draftKey) {
+        useDraftQueryRestore(draftKey, (key) => {
+            activeDraftKey.value = key;
+            activeDraftLabel.value = key.includes('.edit:')
+                ? `${draftLabel} (${key.split(':')[1]})`
+                : draftLabel;
+            if (draft?.restoreDraft(true)) {
+                modalOpen.value = true;
+            }
+        });
+    }
 
     function fieldKeys() {
         return only ?? Object.keys(form.data());
@@ -23,13 +44,22 @@ export function useResourceForm(form, { resource, only } = {}) {
 
     function openCreate() {
         editingId.value = null;
+        if (draftKey) {
+            activeDraftKey.value = `${draftKey}.create`;
+            activeDraftLabel.value = draftLabel;
+        }
         form.reset();
         form.clearErrors();
+        draft?.restoreDraft(false);
         modalOpen.value = true;
     }
 
     function openEdit(row) {
         editingId.value = row.id;
+        if (draftKey) {
+            activeDraftKey.value = `${draftKey}.edit:${row.id}`;
+            activeDraftLabel.value = `${draftLabel} (#${row.id})`;
+        }
         form.reset();
         form.clearErrors();
         for (const key of fieldKeys()) {
@@ -37,6 +67,7 @@ export function useResourceForm(form, { resource, only } = {}) {
                 form[key] = row[key];
             }
         }
+        draft?.restoreDraft(false);
         modalOpen.value = true;
     }
 
@@ -44,6 +75,7 @@ export function useResourceForm(form, { resource, only } = {}) {
         const options = {
             preserveScroll: true,
             onSuccess: () => {
+                draft?.clearDraft();
                 modalOpen.value = false;
             },
             ...overrides,
@@ -92,5 +124,6 @@ export function useResourceForm(form, { resource, only } = {}) {
         askDelete,
         closeDelete,
         destroy,
+        clearDraft: () => draft?.clearDraft(),
     };
 }

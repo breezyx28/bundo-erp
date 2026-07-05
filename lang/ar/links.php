@@ -1,0 +1,26 @@
+<?php
+
+return [
+    'title' => 'الروابط',
+    'search_placeholder' => 'ابحث عن الصفحات...',
+    'no_results' => 'لا توجد صفحات مطابقة لبحثك.',
+    'quick_stats' => 'إحصائيات سريعة',
+    'quick_access' => 'وصول سريع',
+    'recent' => 'المستخدمة مؤخراً',
+    'all_pages' => 'كل الصفحات',
+    'open_launcher' => 'فتح التنقل',
+    'tablet_mode' => 'وضع الجهاز اللوحي',
+    'tablet_mode_hint' => 'تنقل بأيقونات التطبيقات بدون الشريط الجانبي',
+    'command_placeholder' => 'ابحث عن الصفحات والإجراءات...',
+    'pages' => 'الصفحات',
+    'actions' => 'إجراءات سريعة',
+    'revenue_month' => 'الإيرادات (الشهر)',
+    'profit_month' => 'الربح (الشهر)',
+    'outstanding' => 'الديون المستحقة',
+    'low_stock' => 'مخزون منخفض',
+    'new_sale' => 'فاتورة بيع جديدة',
+    'new_purchase' => 'أمر شراء جديد',
+    'new_customer' => 'إضافة عميل',
+    'new_product' => 'إضافة منتج',
+    'new_expense' => 'إضافة مصروف',
+];

@@ -56,7 +56,7 @@ const {
     submit,
     askDelete,
     destroy,
-} = useResourceForm(form, { resource: 'brands' });
+} = useResourceForm(form, { resource: 'brands', draftKey: 'brands', draftLabel: t('nav.brands') });
 </script>
 
 <template>

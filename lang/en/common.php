@@ -43,4 +43,11 @@ return [
     'print_columns_hint' => 'Choose which columns to include in the printout.',
     'date_from' => 'From date',
     'date_to' => 'To date',
+    'unfinished_forms' => 'Unfinished forms',
+    'continue_draft' => 'Continue',
+    'no_drafts' => 'No unfinished forms',
+    'draft_restored' => 'Draft restored',
+    'draft_just_now' => 'Just now',
+    'dismiss_draft' => 'Dismiss',
+    'validation_errors' => 'Please fix the errors below.',
 ];

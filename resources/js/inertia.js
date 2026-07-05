@@ -10,6 +10,7 @@ import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import { createApp, h } from 'vue';
 import VueApexCharts from 'vue3-apexcharts';
 import { ZiggyVue } from 'ziggy-js';
+import { applyDisplayPreferences, bootstrapDisplayPreferences } from '@/composables/useDisplayPreferences';
 
 // Register icon collections locally so @nuxt/ui's UIcon resolves them from the
 // bundle instead of the Iconify HTTP API (which the strict CSP blocks).
@@ -27,6 +28,9 @@ createInertiaApp({
             import.meta.glob('./pages/**/*.vue'),
         ),
     setup({ el, App, props, plugin }) {
+        applyDisplayPreferences(props.initialPage.props.displayPrefs);
+        bootstrapDisplayPreferences();
+
         createApp({ render: () => h(App, props) })
             .use(plugin)
             .use(ui)

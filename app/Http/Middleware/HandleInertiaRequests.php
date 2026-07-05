@@ -7,6 +7,7 @@ use App\Services\Navigation\NavBadgeService;
 use App\Services\Tenancy\TenantContext;
 use App\Support\Navigation;
 use App\Support\TenantBranding;
+use App\Support\TenantMoney;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\File;
@@ -44,6 +45,7 @@ class HandleInertiaRequests extends Middleware
             'auth' => [
                 'user' => $user ? [
                     'id' => $user->id,
+                    'tenant_id' => $user->tenant_id,
                     'name' => $user->name,
                     'email' => $user->email,
                     'is_super_admin' => $user->hasRole('super_admin'),
@@ -58,6 +60,19 @@ class HandleInertiaRequests extends Middleware
                 'available' => ['ar', 'en'],
             ],
 
+            'layout' => [
+                'mode' => data_get($user?->settings, 'layout_mode', 'regular'),
+            ],
+
+            'displayPrefs' => $user
+                ? [
+                    'scale' => data_get($user->settings, 'display.scale', 'md'),
+                    'textBody' => data_get($user->settings, 'display.text_body'),
+                    'textMuted' => data_get($user->settings, 'display.text_muted'),
+                    'highContrast' => (bool) data_get($user->settings, 'display.high_contrast', false),
+                ]
+                : null,
+
             'translations' => fn () => $this->translations($locale),
 
             'nav' => fn () => $this->navigation(),
@@ -71,6 +86,20 @@ class HandleInertiaRequests extends Middleware
             'flash' => [
                 'toast' => $request->session()->get('ui.toast'),
             ],
+
+            'notificationPrefs' => fn () => Auth::check()
+                ? ['sound' => (bool) data_get(Auth::user()?->settings, 'notifications.sound', true)]
+                : null,
+
+            'money' => fn () => Auth::check() && ! app(TenantContext::class)->isPlatformMode()
+                ? [
+                    'currency' => TenantMoney::baseCurrency(),
+                    'exchangeRate' => TenantMoney::exchangeRate(),
+                ]
+                : [
+                    'currency' => config('money.base'),
+                    'exchangeRate' => (float) config('money.default_exchange_rate'),
+                ],
         ];
     }
 

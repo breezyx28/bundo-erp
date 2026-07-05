@@ -1,6 +1,6 @@
 <script setup>
 import { computed, ref } from 'vue';
-import { Head, useForm } from '@inertiajs/vue3';
+import { Head, useForm, router } from '@inertiajs/vue3';
 import { route } from 'ziggy-js';
 import AppLayout from '@/layouts/AppLayout.vue';
 import DataTable from '@/components/DataTable.vue';
@@ -12,6 +12,7 @@ import { useTrans } from '@/composables/useTrans';
 import { useTableFilters } from '@/composables/useTableFilters';
 import { useTableColumns } from '@/composables/useTableColumns';
 import { useResourceForm } from '@/composables/useResourceForm';
+import { useOpenCreateQuery } from '@/composables/useOpenCreateQuery';
 
 const props = defineProps({
     products: { type: Object, required: true },
@@ -39,6 +40,8 @@ const headers = [
     { key: 'sku', label: t('fields.sku'), sortable: true },
     { key: 'category', label: t('fields.category') },
     { key: 'selling_price', label: t('fields.selling_price'), sortable: true, align: 'end' },
+    { key: 'show_in_shop', label: t('shop.show_on_shop') },
+    { key: 'featured_in_shop', label: t('shop.featured_on_shop') },
     { key: 'is_active', label: t('common.status'), sortable: true },
 ];
 
@@ -89,14 +92,19 @@ const {
     openEdit,
     askDelete,
     destroy,
+    clearDraft,
 } = useResourceForm(form, {
     resource: 'products',
+    draftKey: 'products',
+    draftLabel: t('nav.products'),
     only: [
         'name', 'sku', 'barcode', 'category_id', 'brand_id', 'unit',
         'cost_price', 'selling_price', 'reorder_level', 'description',
         'is_active', 'has_variants', 'variants',
     ],
 });
+
+useOpenCreateQuery(openCreate, () => props.canManage);
 
 function onImageChange(event) {
     form.image = event.target.files[0] ?? null;
@@ -117,6 +125,10 @@ function removeVariant(index) {
     form.variants.splice(index, 1);
 }
 
+function toggleShop(row, field) {
+    router.post(route('products.shop.toggle', row.id), { [field]: !row[field] }, { preserveScroll: true });
+}
+
 const toBooleans = (data) => ({
     ...data,
     is_active: data.is_active ? 1 : 0,
@@ -129,6 +141,7 @@ function submit() {
         preserveScroll: true,
         forceFormData: withFile,
         onSuccess: () => {
+            clearDraft();
             modalOpen.value = false;
         },
     };
@@ -220,6 +233,24 @@ function submit() {
 
                     <template #cell-selling_price="{ row }">
                         {{ row.selling_price_formatted }}
+                    </template>
+
+                    <template #cell-show_in_shop="{ row }">
+                        <UCheckbox
+                            v-if="canManage"
+                            :model-value="row.show_in_shop"
+                            @update:model-value="toggleShop(row, 'show_in_shop')"
+                        />
+                        <UBadge v-else :color="row.show_in_shop ? 'success' : 'neutral'" variant="subtle" :label="row.show_in_shop ? t('common.yes') : t('common.no')" />
+                    </template>
+
+                    <template #cell-featured_in_shop="{ row }">
+                        <UCheckbox
+                            v-if="canManage"
+                            :model-value="row.featured_in_shop"
+                            :disabled="!row.show_in_shop"
+                            @update:model-value="toggleShop(row, 'featured_in_shop')"
+                        />
                     </template>
 
                     <template #cell-is_active="{ row }">

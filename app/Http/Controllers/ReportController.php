@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Services\Reporting\FinancialReportService;
+use App\Support\TenantMoney;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -28,7 +29,7 @@ class ReportController extends Controller
                 ['value' => 'cashflow', 'label' => __('reports.cashflow')],
                 ['value' => 'branches', 'label' => __('reports.branch_comparison')],
             ],
-            'rate' => (float) config('money.default_exchange_rate'),
+            'rate' => TenantMoney::exchangeRate(),
             'currencies' => [
                 'SDG' => $this->currency('SDG'),
                 'USD' => $this->currency('USD'),

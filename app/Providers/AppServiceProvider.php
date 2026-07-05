@@ -29,6 +29,7 @@ class AppServiceProvider extends ServiceProvider
         $this->app->singleton(Navigation::class);
         $this->app->singleton(TenantBranding::class);
         $this->app->singleton(FormSelectCatalog::class);
+        $this->app->singleton(\App\Services\Shop\ShopContext::class);
     }
 
     public function boot(): void

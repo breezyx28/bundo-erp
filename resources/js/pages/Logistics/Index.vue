@@ -9,6 +9,7 @@ import TableToolbar from '@/components/TableToolbar.vue';
 import TablePrintModal from '@/components/TablePrintModal.vue';
 import StatusBadgeCell from '@/components/StatusBadgeCell.vue';
 import TableRowActions from '@/components/TableRowActions.vue';
+import AutocompleteInput from '@/components/AutocompleteInput.vue';
 import { useTrans } from '@/composables/useTrans';
 import { useIndexTable } from '@/composables/useIndexTable';
 import { useResourceForm } from '@/composables/useResourceForm';
@@ -70,6 +71,8 @@ const {
     destroy,
 } = useResourceForm(form, {
     resource: 'logistics',
+    draftKey: 'logistics',
+    draftLabel: t('nav.logistics'),
     only: ['name', 'phone', 'email', 'contact_person', 'address', 'rating', 'notes', 'is_active'],
 });
 </script>
@@ -140,7 +143,7 @@ const {
                 </div>
                 <div class="grid gap-4 sm:grid-cols-2">
                     <UFormField :label="t('shipping.contact_person')" :error="form.errors.contact_person">
-                        <UInput v-model="form.contact_person" class="w-full" />
+                        <AutocompleteInput v-model="form.contact_person" field="logistics_contact_person" />
                     </UFormField>
                     <UFormField :label="t('shipping.rating')" :error="form.errors.rating">
                         <UInput v-model="form.rating" type="number" min="0" max="5" class="w-full" />

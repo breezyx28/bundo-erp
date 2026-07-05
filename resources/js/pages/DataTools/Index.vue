@@ -10,6 +10,7 @@ import TablePrintModal from '@/components/TablePrintModal.vue';
 import { useTrans } from '@/composables/useTrans';
 import { useTableColumns } from '@/composables/useTableColumns';
 import { numericHeader, textHeader } from '@/utils/tableHeaders';
+import { useFormDraft, useDraftQueryRestore } from '@/composables/useFormDraft';
 
 const props = defineProps({
     exportTypes: { type: Array, default: () => [] },
@@ -33,11 +34,31 @@ function exportUrl(format) {
 }
 
 const importForm = useForm({ importType: props.importTypes[0]?.value ?? '', file: null });
+const importDraft = useFormDraft({
+    key: 'datatools.import',
+    label: t('datatools.tab_import'),
+    routeName: 'data-tools.index',
+    form: importForm,
+    active: computed(() => tab.value === 'import'),
+    getSnapshot: () => ({ importType: importForm.importType }),
+    onApply: (data) => {
+        importForm.importType = data.importType ?? props.importTypes[0]?.value ?? '';
+    },
+});
+
+useDraftQueryRestore('datatools', () => {
+    tab.value = 'import';
+    importDraft.restoreDraft(true);
+});
+
 function submitImport() {
     importForm.post(route('data-tools.import'), {
         forceFormData: true,
         preserveScroll: true,
-        onSuccess: () => importForm.reset('file'),
+        onSuccess: () => {
+            importDraft.clearDraft();
+            importForm.reset('file');
+        },
     });
 }
 function onImportFile(e) {

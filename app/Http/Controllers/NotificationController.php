@@ -40,6 +40,7 @@ class NotificationController extends Controller
             'notifications' => $notifications,
             'filter' => $filter,
             'emailAlerts' => (bool) data_get($user?->settings, 'notifications.mail', false),
+            'soundAlerts' => (bool) data_get($user?->settings, 'notifications.sound', true),
         ]);
     }
 
@@ -61,13 +62,19 @@ class NotificationController extends Controller
 
     public function savePreferences(Request $request): RedirectResponse
     {
-        $data = $request->validate(['emailAlerts' => 'boolean']);
+        $data = $request->validate([
+            'emailAlerts' => 'boolean',
+            'soundAlerts' => 'boolean',
+        ]);
 
         $user = Auth::user();
 
         if ($user) {
             $settings = $user->settings ?? [];
-            $settings['notifications'] = array_merge($settings['notifications'] ?? [], ['mail' => (bool) ($data['emailAlerts'] ?? false)]);
+            $settings['notifications'] = array_merge($settings['notifications'] ?? [], [
+                'mail' => (bool) ($data['emailAlerts'] ?? false),
+                'sound' => (bool) ($data['soundAlerts'] ?? true),
+            ]);
             $user->forceFill(['settings' => $settings])->save();
         }
 

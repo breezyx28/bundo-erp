@@ -9,6 +9,7 @@ use App\Models\Shipment;
 use App\Services\Branch\BranchContext;
 use App\Services\Collections\CollectionsService;
 use App\Support\DateRange;
+use App\Support\TenantMoney;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -82,7 +83,7 @@ class DashboardService
                     'delivered' => Shipment::query()->where('status', Shipment::STATUS_DELIVERED)->count(),
                 ],
                 'trend' => $this->monthlyTrend(),
-                'rate' => (float) config('money.default_exchange_rate'),
+                'rate' => TenantMoney::exchangeRate(),
             ];
         });
     }
@@ -107,7 +108,7 @@ class DashboardService
      */
     protected function sales(array $period): array
     {
-        $query = SalesInvoice::query()->whereBetween('invoice_date', DateRange::bounds($period[0]->toDateString(), $period[1]->toDateString()));
+        $query = SalesInvoice::query()->posted()->whereBetween('invoice_date', DateRange::bounds($period[0]->toDateString(), $period[1]->toDateString()));
 
         return [
             'net' => round((float) (clone $query)->sum('net_amount'), 2),
@@ -164,6 +165,7 @@ class DashboardService
             ->join('sales_invoices as si', 'si.id', '=', 'sii.sales_invoice_id')
             ->join('products as p', 'p.id', '=', 'sii.product_id')
             ->whereNull('si.deleted_at')
+            ->where('si.status', 'posted')
             ->whereIn('si.branch_id', $this->scopeBranchIds())
             ->whereBetween('si.invoice_date', DateRange::bounds($period[0]->toDateString(), $period[1]->toDateString()))
             ->groupBy('p.id', 'p.name')
@@ -190,6 +192,7 @@ class DashboardService
             ->join('products as p', 'p.id', '=', 'sii.product_id')
             ->leftJoin('brands as b', 'b.id', '=', 'p.brand_id')
             ->whereNull('si.deleted_at')
+            ->where('si.status', 'posted')
             ->whereIn('si.branch_id', $this->scopeBranchIds())
             ->whereBetween('si.invoice_date', DateRange::bounds($period[0]->toDateString(), $period[1]->toDateString()))
             ->groupBy('b.id', 'b.name')
@@ -215,6 +218,7 @@ class DashboardService
         $sales = DB::table('sales_invoices as si')
             ->leftJoin('customers as c', 'c.id', '=', 'si.customer_id')
             ->whereNull('si.deleted_at')
+            ->where('si.status', 'posted')
             ->whereIn('si.branch_id', $ids)
             ->orderByDesc('si.id')->limit(10)
             ->get(['si.invoice_number as number', 'si.net_amount as amount', 'si.invoice_date as date', 'c.name as party']);

@@ -17,6 +17,8 @@ return [
     'preferences' => 'Preferences',
     'email_alerts' => 'Email notifications',
     'email_alerts_hint' => 'Also send important alerts to your email address.',
+    'sound_alerts' => 'Sound alerts',
+    'sound_alerts_hint' => 'Play a short tone when a new notification arrives.',
     'saved' => 'Preferences saved.',
 
     // Levels

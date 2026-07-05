@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Controllers\Concerns\InteractsWithToast;
 use App\Services\Reporting\DashboardService;
+use App\Support\TenantMoney;
 use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -16,7 +17,7 @@ class DashboardController extends Controller
     {
         return Inertia::render('Dashboard/Index', [
             'kpis' => $service->kpis(),
-            'rate' => (float) config('money.default_exchange_rate'),
+            'rate' => TenantMoney::exchangeRate(),
             'currencies' => $this->currencies(),
         ]);
     }

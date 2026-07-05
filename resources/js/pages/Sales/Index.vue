@@ -11,6 +11,9 @@ import TablePrintModal from '@/components/TablePrintModal.vue';
 import { useTrans } from '@/composables/useTrans';
 import { useTableFilters } from '@/composables/useTableFilters';
 import { useTableColumns } from '@/composables/useTableColumns';
+import { useOpenCreateQuery } from '@/composables/useOpenCreateQuery';
+import { useFormDraft, useDraftQueryRestore } from '@/composables/useFormDraft';
+import { usePage } from '@inertiajs/vue3';
 
 const props = defineProps({
     invoices: { type: Object, required: true },
@@ -21,16 +24,18 @@ const props = defineProps({
     methodOptions: { type: Array, default: () => [] },
     discountTypeOptions: { type: Array, default: () => [] },
     sortOptions: { type: Array, default: () => [] },
-    defaultExchangeRate: { type: Number, default: 0 },
     currency: { type: Object, default: () => ({ symbol: '', decimals: 2 }) },
     detail: { type: Object, default: null },
     filters: { type: Object, default: () => ({}) },
     canCreate: { type: Boolean, default: false },
     canPay: { type: Boolean, default: false },
     canVoid: { type: Boolean, default: false },
+    drafts: { type: Array, default: () => [] },
 });
 
 const { t } = useTrans();
+const page = usePage();
+const defaultExchangeRate = computed(() => Number(page.props.money?.exchangeRate ?? 600));
 const { filters, toggleSort } = useTableFilters('sales.index', {
     search: props.filters.search ?? '',
     status: props.filters.status ?? '',
@@ -80,7 +85,10 @@ const statusColor = (s) => ({ paid: 'success', partial: 'warning', unpaid: 'erro
 // Create
 const today = new Date().toISOString().slice(0, 10);
 const formOpen = ref(false);
+const editingDraftId = ref(null);
+const holdLabel = ref('');
 const form = useForm({
+    id: null,
     customer_id: null,
     sale_type: 'cash',
     invoice_date: today,
@@ -92,6 +100,36 @@ const form = useForm({
     exchange_rate: 0,
     notes: '',
     items: [],
+});
+
+const saleDraft = useFormDraft({
+    key: 'sales.create',
+    label: t('sales.new_sale'),
+    routeName: 'sales.index',
+    form,
+    active: formOpen,
+    getSnapshot: () => ({
+        ...form.data(),
+        holdLabel: holdLabel.value,
+        editingDraftId: editingDraftId.value,
+    }),
+    onApply: (data) => {
+        holdLabel.value = data.holdLabel ?? '';
+        editingDraftId.value = data.editingDraftId ?? null;
+        const { holdLabel: _h, editingDraftId: _e, ...rest } = data;
+        Object.keys(rest).forEach((field) => {
+            if (field in form) {
+                form[field] = rest[field];
+            }
+        });
+    },
+    isEmpty: () => !form.items.some((item) => item.product_id),
+});
+
+useDraftQueryRestore('sales', () => {
+    if (saleDraft.restoreDraft(true)) {
+        formOpen.value = true;
+    }
 });
 
 function addItem() {
@@ -107,13 +145,70 @@ function onProductChange(item) {
     }
 }
 function openCreate() {
+    editingDraftId.value = null;
+    holdLabel.value = '';
     form.reset();
     form.clearErrors();
+    form.id = null;
     form.invoice_date = today;
-    form.exchange_rate = props.defaultExchangeRate;
+    form.exchange_rate = defaultExchangeRate.value;
     form.items = [{ product_id: null, quantity: 1, unit_price: 0 }];
     formOpen.value = true;
 }
+
+function resumeDraft(draft) {
+    editingDraftId.value = draft.id;
+    holdLabel.value = draft.hold_label ?? '';
+    form.clearErrors();
+    form.id = draft.id;
+    form.customer_id = draft.customer_id;
+    form.sale_type = draft.sale_type;
+    form.invoice_date = draft.invoice_date ?? today;
+    form.due_date = draft.due_date;
+    form.discount_type = draft.discount_type;
+    form.discount_value = draft.discount_value ?? 0;
+    form.exchange_rate = draft.exchange_rate || defaultExchangeRate.value;
+    form.notes = draft.notes ?? '';
+    form.payment_method = 'cash';
+    form.paid_amount = 0;
+    form.items = draft.items.length
+        ? draft.items.map((item) => ({ ...item }))
+        : [{ product_id: null, quantity: 1, unit_price: 0 }];
+    formOpen.value = true;
+}
+
+function holdOrder() {
+    form.transform((data) => ({
+        ...data,
+        id: editingDraftId.value,
+        hold_label: holdLabel.value || null,
+    })).post(route('sales.draft'), {
+        preserveScroll: true,
+        onSuccess: () => {
+            saleDraft.clearDraft();
+            formOpen.value = false;
+            editingDraftId.value = null;
+        },
+    });
+}
+
+function completeDraft() {
+    if (editingDraftId.value) {
+        form.post(route('sales.post', editingDraftId.value), {
+            preserveScroll: true,
+            onSuccess: () => {
+                formOpen.value = false;
+                editingDraftId.value = null;
+                filters.search = '';
+                filters.status = '';
+            },
+        });
+        return;
+    }
+    submit();
+}
+
+useOpenCreateQuery(openCreate, () => props.canCreate);
 
 const totals = computed(() => {
     let subtotal = 0;
@@ -148,12 +243,39 @@ function submit() {
     form.post(route('sales.store'), {
         preserveScroll: true,
         onSuccess: () => {
+            saleDraft.clearDraft();
             formOpen.value = false;
             // Clear stale filters so the new invoice is visible on page 1.
             filters.search = '';
             filters.status = '';
         },
     });
+}
+
+// Discard held order
+const discardOpen = ref(false);
+const discardId = ref(null);
+const discarding = ref(false);
+function askDiscard(id) {
+    discardId.value = id;
+    discardOpen.value = true;
+}
+function confirmDiscard() {
+    discarding.value = true;
+    router.delete(route('sales.draft.discard', discardId.value), {
+        preserveScroll: true,
+        onFinish: () => {
+            discarding.value = false;
+            discardOpen.value = false;
+        },
+    });
+}
+
+function postDraftDirect(draft) {
+    router.post(route('sales.post', draft.id), {
+        payment_method: draft.sale_type === 'credit' ? 'cash' : 'cash',
+        paid_amount: draft.sale_type === 'credit' ? 0 : draft.net_amount_raw,
+    }, { preserveScroll: true });
 }
 
 // Payment
@@ -226,6 +348,32 @@ function openDetail(id) {
                 <UButton v-if="canCreate" :label="t('sales.new_sale')" icon="i-heroicons-plus" @click="openCreate()" />
             </div>
 
+            <UCard v-if="drafts.length" class="border-warning/30">
+                <template #header>
+                    <div class="flex items-center justify-between gap-4">
+                        <h2 class="text-sm font-semibold text-highlighted">{{ t('sales.held_orders') }}</h2>
+                        <UBadge color="warning" variant="subtle" :label="String(drafts.length)" />
+                    </div>
+                </template>
+                <div class="divide-y divide-default">
+                    <div v-for="draft in drafts" :key="draft.id" class="flex flex-wrap items-center justify-between gap-3 py-3 first:pt-0 last:pb-0">
+                        <div class="min-w-0">
+                            <p class="font-medium text-highlighted">
+                                {{ draft.hold_label || draft.customer || t('sales.walk_in') }}
+                            </p>
+                            <p class="text-xs text-dimmed">
+                                {{ draft.item_count }} {{ t('sales.items') }} · {{ draft.net_amount }} · {{ draft.created_at }}
+                            </p>
+                        </div>
+                        <div class="flex flex-wrap gap-1">
+                            <UButton v-if="canCreate" size="xs" variant="ghost" :label="t('sales.resume')" @click="resumeDraft(draft)" />
+                            <UButton v-if="canCreate" size="xs" color="primary" variant="soft" :label="t('sales.complete_sale')" @click="postDraftDirect(draft)" />
+                            <UButton v-if="canCreate" size="xs" color="error" variant="ghost" icon="i-heroicons-trash" @click="askDiscard(draft.id)" />
+                        </div>
+                    </div>
+                </div>
+            </UCard>
+
             <UCard>
                 <DataTable
                     :headers="visibleHeaders"
@@ -278,9 +426,12 @@ function openDetail(id) {
             </UCard>
         </div>
 
-        <FormModal v-model:open="formOpen" :title="t('sales.new_sale')" width="sm:max-w-4xl">
+        <FormModal v-model:open="formOpen" :title="editingDraftId ? t('sales.resume') : t('sales.new_sale')" width="sm:max-w-4xl">
             <div class="grid gap-4">
-                <div class="grid gap-4 sm:grid-cols-4">
+                <UFormField v-if="canCreate" :label="t('sales.hold_label')" :hint="t('sales.hold_label_hint')">
+                    <UInput v-model="holdLabel" class="w-full" />
+                </UFormField>
+                <div class="responsive-stat-grid">
                     <UFormField :label="t('nav.customers')" :error="form.errors.customer_id" class="sm:col-span-2">
                         <USelectMenu v-model="form.customer_id" :items="customerItems" value-key="value" searchable :placeholder="t('sales.walk_in')" class="w-full" />
                     </UFormField>
@@ -355,9 +506,12 @@ function openDetail(id) {
             </div>
             <template #footer="{ close }">
                 <UButton color="neutral" variant="ghost" :label="t('common.cancel')" @click="close" />
-                <UButton :label="t('sales.complete_sale')" :loading="form.processing" :disabled="creditNeedsCustomer" @click="submit()" />
+                <UButton v-if="canCreate" color="warning" variant="soft" :label="t('sales.hold_order')" :loading="form.processing" @click="holdOrder()" />
+                <UButton :label="t('sales.complete_sale')" :loading="form.processing" :disabled="creditNeedsCustomer" @click="completeDraft()" />
             </template>
         </FormModal>
+
+        <ConfirmModal v-model:open="discardOpen" :title="t('sales.discard')" :message="t('sales.confirm_discard')" :loading="discarding" @confirm="confirmDiscard" />
 
         <FormModal v-model:open="paymentOpen" :title="t('sales.record_payment')" width="sm:max-w-lg">
             <div class="grid gap-4">
