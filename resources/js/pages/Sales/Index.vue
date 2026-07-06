@@ -1,6 +1,6 @@
 <script setup>
 import { computed, ref } from 'vue';
-import { Head, useForm, router } from '@inertiajs/vue3';
+import { Head, useForm, router, usePage } from '@inertiajs/vue3';
 import { route } from 'ziggy-js';
 import AppLayout from '@/layouts/AppLayout.vue';
 import DataTable from '@/components/DataTable.vue';
@@ -13,7 +13,7 @@ import { useTableFilters } from '@/composables/useTableFilters';
 import { useTableColumns } from '@/composables/useTableColumns';
 import { useOpenCreateQuery } from '@/composables/useOpenCreateQuery';
 import { useFormDraft, useDraftQueryRestore } from '@/composables/useFormDraft';
-import { usePage } from '@inertiajs/vue3';
+import { useProductSelectItems } from '@/composables/useProductSelectItems';
 
 const props = defineProps({
     invoices: { type: Object, required: true },
@@ -72,7 +72,7 @@ const printRows = computed(() =>
 
 const statusItems = computed(() => [{ label: t('common.all'), value: '' }, ...props.statusOptions]);
 const customerItems = computed(() => props.customerOptions.map((c) => ({ label: c.name, value: c.id })));
-const productItems = computed(() => props.productOptions.map((p) => ({ label: p.name, value: p.id })));
+const { productItems, productSelectAttrs } = useProductSelectItems(() => props.productOptions);
 const methodItems = computed(() => props.methodOptions);
 const discountItems = computed(() => [{ label: t('common.none'), value: null }, ...props.discountTypeOptions]);
 const saleTypeItems = computed(() => [
@@ -455,9 +455,9 @@ function openDetail(id) {
                         <div class="flex-1">
                             <USelectMenu
                                 v-model="item.product_id"
+                                v-bind="productSelectAttrs"
                                 :items="productItems"
                                 value-key="value"
-                                searchable
                                 :placeholder="t('nav.products')"
                                 class="w-full"
                                 @update:model-value="onProductChange(item)"

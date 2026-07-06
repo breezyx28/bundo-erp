@@ -12,6 +12,7 @@ import { useTrans } from '@/composables/useTrans';
 import { useTableFilters } from '@/composables/useTableFilters';
 import { useTableColumns } from '@/composables/useTableColumns';
 import { useFormDraft, useDraftQueryRestore } from '@/composables/useFormDraft';
+import { useProductSelectItems } from '@/composables/useProductSelectItems';
 
 const props = defineProps({
     transfers: { type: Object, required: true },
@@ -53,7 +54,7 @@ const printRows = computed(() =>
 
 const statusItems = computed(() => [{ label: t('common.all'), value: '' }, ...props.statusOptions]);
 const branchItems = computed(() => props.branchOptions.map((b) => ({ label: b.name, value: b.id })));
-const productItems = computed(() => props.productOptions.map((p) => ({ label: p.name, value: p.id })));
+const { productItems, productSelectAttrs } = useProductSelectItems(() => props.productOptions);
 
 const statusColor = (s) => ({
     requested: 'info', approved: 'primary', dispatched: 'warning', received: 'success', cancelled: 'neutral',
@@ -216,7 +217,14 @@ function openDetail(id) {
                         <UButton size="xs" icon="i-heroicons-plus" :label="t('inventory.add_item')" variant="ghost" @click="addItem" />
                     </div>
                     <div v-for="(item, index) in form.items" :key="index" class="flex items-end gap-2">
-                        <USelectMenu v-model="item.product_id" :items="productItems" value-key="value" searchable :placeholder="t('nav.products')" class="flex-1" />
+                        <USelectMenu
+                            v-model="item.product_id"
+                            v-bind="productSelectAttrs"
+                            :items="productItems"
+                            value-key="value"
+                            :placeholder="t('nav.products')"
+                            class="flex-1"
+                        />
                         <UInput v-model="item.quantity" type="number" min="1" class="w-28" :placeholder="t('inventory.quantity')" />
                         <UButton icon="i-heroicons-trash" color="error" variant="ghost" size="sm" @click="removeItem(index)" />
                     </div>

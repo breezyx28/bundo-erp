@@ -11,6 +11,7 @@ import { useTrans } from '@/composables/useTrans';
 import { useTableFilters } from '@/composables/useTableFilters';
 import { useTableColumns } from '@/composables/useTableColumns';
 import { useFormDraft, useDraftQueryRestore } from '@/composables/useFormDraft';
+import { useProductSelectItems } from '@/composables/useProductSelectItems';
 
 const props = defineProps({
     products: { type: Object, required: true },
@@ -51,9 +52,7 @@ const printRows = computed(() =>
     })),
 );
 
-const productItems = computed(() =>
-    props.productOptions.map((p) => ({ label: p.name, value: p.id })),
-);
+const { productItems, productSelectAttrs } = useProductSelectItems(() => props.productOptions);
 const locationItems = computed(() => [
     { label: t('common.none'), value: null },
     ...props.locationOptions.map((l) => ({ label: l.name, value: l.id })),
@@ -260,9 +259,9 @@ function openMovements(row) {
                 <UFormField :label="t('nav.products')" :error="receiveForm.errors.r_product_id">
                     <USelectMenu
                         v-model="receiveForm.r_product_id"
+                        v-bind="productSelectAttrs"
                         :items="productItems"
                         value-key="value"
-                        searchable
                         :placeholder="t('common.none')"
                         class="w-full"
                     />

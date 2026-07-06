@@ -12,6 +12,7 @@ import { useTableFilters } from '@/composables/useTableFilters';
 import { useTableColumns } from '@/composables/useTableColumns';
 import { useOpenCreateQuery } from '@/composables/useOpenCreateQuery';
 import { useFormDraft, useDraftQueryRestore } from '@/composables/useFormDraft';
+import { useProductSelectItems } from '@/composables/useProductSelectItems';
 
 const props = defineProps({
     orders: { type: Object, required: true },
@@ -64,7 +65,7 @@ const statusItems = computed(() => [
     ...props.statusOptions,
 ]);
 const supplierItems = computed(() => props.supplierOptions.map((s) => ({ label: s.name, value: s.id })));
-const productItems = computed(() => props.productOptions.map((p) => ({ label: p.name, value: p.id })));
+const { productItems, productSelectAttrs } = useProductSelectItems(() => props.productOptions);
 const methodItems = computed(() => props.methodOptions);
 
 const orderStatusColor = (s) => ({
@@ -357,9 +358,9 @@ function openDetail(id) {
                     >
                         <USelectMenu
                             v-model="item.product_id"
+                            v-bind="productSelectAttrs"
                             :items="productItems"
                             value-key="value"
-                            searchable
                             :placeholder="t('nav.products')"
                             class="flex-1"
                         />

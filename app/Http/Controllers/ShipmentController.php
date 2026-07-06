@@ -216,10 +216,14 @@ class ShipmentController extends Controller
             return [];
         }
 
-        $shipment = Shipment::with('invoice.items.product:id,name')->find($shipmentId);
+        $shipment = Shipment::with('invoice.items.product:id,name,sku')->find($shipmentId);
 
         return ($shipment?->invoice?->items ?? collect())
-            ->map(fn ($item) => ['id' => $item->product_id, 'name' => $item->product?->name])
+            ->map(fn ($item) => [
+                'id' => $item->product_id,
+                'name' => $item->product?->name,
+                'sku' => $item->product?->sku,
+            ])
             ->unique('id')->values()->all();
     }
 

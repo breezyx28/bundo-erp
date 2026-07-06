@@ -11,6 +11,7 @@ import { useTrans } from '@/composables/useTrans';
 import { useTableFilters } from '@/composables/useTableFilters';
 import { useTableColumns } from '@/composables/useTableColumns';
 import { useFormDraft, useDraftQueryRestore } from '@/composables/useFormDraft';
+import { useProductSelectItems } from '@/composables/useProductSelectItems';
 
 const props = defineProps({
     shipments: { type: Object, required: true },
@@ -62,7 +63,7 @@ const printRows = computed(() =>
 const statusItems = computed(() => [{ label: t('common.all'), value: '' }, ...props.statusOptions]);
 const companyItems = computed(() => props.companyOptions.map((c) => ({ label: c.name, value: c.id })));
 const invoiceItems = computed(() => props.invoiceOptions.map((i) => ({ label: i.name, value: i.id })));
-const returnItems = computed(() => props.returnOptions.map((p) => ({ label: p.name, value: p.id })));
+const { productItems: returnItems, productSelectAttrs: returnProductSelectAttrs } = useProductSelectItems(() => props.returnOptions);
 
 const statusColor = (s) => ({
     delivered: 'success',
@@ -422,7 +423,14 @@ function rejectReturn(id) {
         <FormModal v-model:open="returnOpen" :title="t('shipping.return')" width="sm:max-w-lg">
             <div class="grid gap-4">
                 <UFormField :label="t('nav.products')" :error="returnForm.errors.return_product_id">
-                    <USelectMenu v-model="returnForm.return_product_id" :items="returnItems" value-key="value" searchable :placeholder="t('common.none')" class="w-full" />
+                    <USelectMenu
+                        v-model="returnForm.return_product_id"
+                        v-bind="returnProductSelectAttrs"
+                        :items="returnItems"
+                        value-key="value"
+                        :placeholder="t('common.none')"
+                        class="w-full"
+                    />
                 </UFormField>
                 <UFormField :label="t('inventory.quantity')" :error="returnForm.errors.return_quantity">
                     <UInput v-model="returnForm.return_quantity" type="number" min="1" class="w-full" />

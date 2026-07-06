@@ -22,11 +22,11 @@ class FormSelectCatalog
 {
     public function __construct(protected BranchContext $branch) {}
 
-    /** @return list<array{id:int,name:string}> */
+    /** @return list<array{id:int,name:string,sku:?string}> */
     public function products(bool $withPrice = false): array
     {
         return Cache::remember($this->key('products', $withPrice), now()->addMinutes(15), function () use ($withPrice) {
-            $columns = $withPrice ? ['id', 'name', 'selling_price'] : ['id', 'name'];
+            $columns = $withPrice ? ['id', 'name', 'sku', 'selling_price'] : ['id', 'name', 'sku'];
 
             return Product::query()
                 ->active()
@@ -37,6 +37,7 @@ class FormSelectCatalog
                     'name' => $withPrice
                         ? $p->name.' · '.number_format((float) $p->selling_price, 2)
                         : $p->name,
+                    'sku' => $p->sku,
                 ])
                 ->all();
         });

@@ -58,10 +58,11 @@ class SalesController extends Controller
                 ]),
             'customerOptions' => $catalog->customers(),
             'productOptions' => Product::query()->active()->orderBy('name')
-                ->get(['id', 'name', 'selling_price'])
+                ->get(['id', 'name', 'sku', 'selling_price'])
                 ->map(fn (Product $p) => [
                     'id' => $p->id,
                     'name' => $p->name,
+                    'sku' => $p->sku,
                     'price' => (float) $p->selling_price,
                 ]),
             'stockMap' => ProductBatch::query()

@@ -2,6 +2,7 @@
 
 return [
     'search' => 'Search...',
+    'search_product' => 'Search by name or SKU…',
     'notifications' => 'Notifications',
     'save' => 'Save',
     'cancel' => 'Cancel',

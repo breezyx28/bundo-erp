@@ -2,6 +2,7 @@
 
 return [
     'search' => 'بحث...',
+    'search_product' => 'ابحث بالاسم أو رمز المنتج…',
     'notifications' => 'الإشعارات',
     'save' => 'حفظ',
     'cancel' => 'إلغاء',
