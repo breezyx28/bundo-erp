@@ -41,7 +41,26 @@ const printRows = computed(() =>
     })),
 );
 
-const roleItems = computed(() => props.roles.map((role) => ({ label: role, value: role })));
+function roleLabel(role) {
+    if (role && typeof role === 'object') {
+        return role.label || role.value || '';
+    }
+    const key = `users.roles.${role}`;
+    const label = t(key);
+    return label === key ? role : label;
+}
+
+const roleItems = computed(() =>
+    props.roles.map((role) => {
+        if (role && typeof role === 'object') {
+            return {
+                value: role.value,
+                label: role.label || roleLabel(role.value),
+            };
+        }
+        return { value: role, label: roleLabel(role) };
+    }),
+);
 const branchItems = computed(() =>
     props.branches.map((branch) => ({ label: branch.name, value: branch.id })),
 );

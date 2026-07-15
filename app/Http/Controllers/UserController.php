@@ -48,7 +48,16 @@ class UserController extends Controller
                     'branchIds' => $user->branches()->pluck('branches.id')->all(),
                 ]),
             'branches' => Branch::query()->orderBy('name')->get(['id', 'name']),
-            'roles' => Role::query()->whereNotIn('name', ['super_admin'])->orderBy('name')->pluck('name')->all(),
+            'roles' => Role::query()
+                ->whereNotIn('name', ['super_admin'])
+                ->orderBy('name')
+                ->pluck('name')
+                ->map(fn (string $name) => [
+                    'value' => $name,
+                    'label' => __('users.roles.'.$name),
+                ])
+                ->values()
+                ->all(),
             'sortOptions' => [
                 ['value' => 'name', 'label' => __('fields.name')],
                 ['value' => 'email', 'label' => __('auth.email')],
